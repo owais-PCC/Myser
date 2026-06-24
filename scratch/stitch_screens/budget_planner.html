@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Budget - Finance Manager</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-dim": "#d8dadc",
+                    "primary-fixed-dim": "#4edea3",
+                    "primary-container": "#10b981",
+                    "inverse-on-surface": "#eff1f3",
+                    "on-primary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "inverse-surface": "#2d3133",
+                    "outline-variant": "#bbcabf",
+                    "surface-container-high": "#e6e8ea",
+                    "secondary-fixed": "#dae2fd",
+                    "on-surface": "#191c1e",
+                    "on-secondary-fixed-variant": "#3f465c",
+                    "on-primary-fixed-variant": "#005236",
+                    "inverse-primary": "#4edea3",
+                    "surface-container-highest": "#e0e3e5",
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed-dim": "#bec6e0",
+                    "primary": "#006c49",
+                    "surface-container": "#eceef0",
+                    "secondary": "#565e74",
+                    "primary-fixed": "#6ffbbe",
+                    "on-tertiary-fixed": "#0b1c30",
+                    "surface-tint": "#006c49",
+                    "on-primary-container": "#00422b",
+                    "tertiary-container": "#94a4bd",
+                    "tertiary": "#505f76",
+                    "surface-container-low": "#f2f4f6",
+                    "tertiary-fixed": "#d3e4fe",
+                    "surface-bright": "#f7f9fb",
+                    "on-primary-fixed": "#002113",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-secondary-container": "#5c647a",
+                    "on-surface-variant": "#3c4a42",
+                    "surface-variant": "#e0e3e5",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed": "#131b2e",
+                    "outline": "#6c7a71",
+                    "error-container": "#ffdad6",
+                    "on-tertiary-fixed-variant": "#38485d",
+                    "surface": "#f7f9fb",
+                    "background": "#f7f9fb",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-container": "#dae2fd",
+                    "on-background": "#191c1e",
+                    "tertiary-fixed-dim": "#b7c8e1",
+                    "on-tertiary-container": "#2a3a4f"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "16px",
+                    "container-padding": "24px",
+                    "stack-sm": "12px",
+                    "stack-lg": "40px",
+                    "stack-md": "24px",
+                    "base": "8px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Inter"],
+                    "title-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for desktop */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d8dadc; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6c7a71; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen pb-24">
+<!-- Top Navigation Bar -->
+<header class="bg-surface sticky top-0 z-40 shadow-sm">
+<div class="flex items-center justify-between px-gutter h-16 w-full max-w-7xl mx-auto">
+<div class="flex items-center gap-4">
+<button class="active:opacity-70 transition-opacity p-2 -ml-2 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined text-primary">arrow_back</span>
+</button>
+<h1 class="font-title-md text-title-md font-semibold text-on-surface">Budget</h1>
+</div>
+<div class="flex items-center gap-2">
+<div class="bg-surface-container rounded-lg px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="font-body-sm text-body-sm text-on-surface-variant">June 2026</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">expand_more</span>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-container-padding py-stack-md space-y-stack-md">
+<!-- Hero Overview Card -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-stack-md shadow-[0px_4px_20px_rgba(15,23,42,0.05)]">
+<div class="flex justify-between items-start mb-base">
+<span class="font-label-caps text-label-caps text-on-surface-variant">REMAINING TO SPEND</span>
+<button class="text-primary font-label-caps text-label-caps hover:underline">Edit</button>
+</div>
+<div class="flex flex-col gap-1">
+<h2 class="font-display-lg text-display-lg text-on-surface">Rs 13,800</h2>
+<div class="flex items-center justify-between mt-stack-sm">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Rs 3,200 spent</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-surface-dim"></span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Total: Rs 17,000</span>
+</div>
+</div>
+</div>
+<!-- Sophisticated Thin Progress Indicator -->
+<div class="mt-stack-md h-1 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary transition-all duration-700" style="width: 18.82%;"></div>
+</div>
+</section>
+<!-- Actions -->
+<div class="grid grid-cols-2 gap-4">
+<button class="flex items-center justify-center gap-2 bg-primary text-on-primary py-3 px-4 rounded-lg font-title-md text-[14px] hover:opacity-90 transition-opacity active:scale-[0.98]">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+                Allocate
+            </button>
+<button class="flex items-center justify-center gap-2 bg-surface-container-highest text-on-surface-variant py-3 px-4 rounded-lg font-title-md text-[14px] hover:bg-surface-dim transition-colors active:scale-[0.98]">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+                Edit All
+            </button>
+</div>
+<!-- Budget Categories -->
+<section class="space-y-4">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant px-1">CATEGORIES</h3>
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant divide-y divide-outline-variant overflow-hidden">
+<!-- Category: Food -->
+<div class="p-4 hover:bg-surface-bright transition-colors group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">restaurant</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="font-title-md text-on-surface">Food</h4>
+<span class="font-title-md text-on-surface">Rs 4,000</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-body-sm text-body-sm">Rs 2,000 left of Rs 4,000</span>
+<span class="font-label-caps text-[10px] bg-primary-container/10 text-primary px-1.5 py-0.5 rounded">50%</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 50%;"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Category: Fuel -->
+<div class="p-4 hover:bg-surface-bright transition-colors group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">local_gas_station</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="font-title-md text-on-surface">Fuel</h4>
+<span class="font-title-md text-on-surface">Rs 3,000</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-body-sm text-body-sm">Rs 3,000 left of Rs 3,000</span>
+<span class="font-label-caps text-[10px] bg-surface-container text-on-surface-variant px-1.5 py-0.5 rounded">0%</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Category: Clothes -->
+<div class="p-4 hover:bg-surface-bright transition-colors group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">checkroom</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="font-title-md text-on-surface">Clothes</h4>
+<span class="font-title-md text-on-surface">Rs 800</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-body-sm text-body-sm">Rs 800 left of Rs 800</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Category: Utilities (Fully Spent) -->
+<div class="p-4 hover:bg-surface-bright transition-colors group cursor-pointer bg-surface-container-low/30">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">lightbulb</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="font-title-md text-on-surface">Utilities</h4>
+<span class="font-title-md text-on-surface">Rs 1,200</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-body-sm text-body-sm text-primary font-semibold">Fully spent</span>
+<span class="font-label-caps text-[10px] bg-primary text-on-primary px-1.5 py-0.5 rounded">100%</span>
+</div>
+<div class="mt-2 h-1 w-full bg-primary rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Category: Health -->
+<div class="p-4 hover:bg-surface-bright transition-colors group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">favorite</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="font-title-md text-on-surface">Health</h4>
+<span class="font-title-md text-on-surface">Rs 2,000</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-body-sm text-body-sm">Rs 2,000 left of Rs 2,000</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Category: Charity -->
+<div class="p-4 hover:bg-surface-bright transition-colors group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">volunteer_activism</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="font-title-md text-on-surface">Charity</h4>
+<span class="font-title-md text-on-surface">Rs 1,000</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-body-sm text-body-sm">Rs 1,000 left of Rs 1,000</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Category: Transport -->
+<div class="p-4 hover:bg-surface-bright transition-colors group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">commute</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="font-title-md text-on-surface">Transport</h4>
+<span class="font-title-md text-on-surface">Rs 2,000</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-body-sm text-body-sm">Rs 2,000 left of Rs 2,000</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Category: Other -->
+<div class="p-4 hover:bg-surface-bright transition-colors group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">inventory_2</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="font-title-md text-on-surface">Other</h4>
+<span class="font-title-md text-on-surface">Rs 3,000</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-body-sm text-body-sm">Rs 3,000 left of Rs 3,000</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Summary Statistics -->
+<section class="bg-surface-container-high rounded-xl p-4 flex justify-around items-center text-center">
+<div>
+<p class="font-label-caps text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Budgeted</p>
+<p class="font-title-md text-on-surface">Rs 17,000</p>
+</div>
+<div class="w-px h-8 bg-outline-variant"></div>
+<div>
+<p class="font-label-caps text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Spent</p>
+<p class="font-title-md text-on-surface">Rs 3,200</p>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe h-16 bg-surface border-t border-outline-variant shadow-[0px_-4px_20px_rgba(15,23,42,0.05)]">
+<!-- Dashboard -->
+<a class="flex flex-col items-center justify-center text-secondary pt-2 active:scale-95 transition-transform duration-200 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps mt-1">Dashboard</span>
+</a>
+<!-- Log -->
+<a class="flex flex-col items-center justify-center text-secondary pt-2 active:scale-95 transition-transform duration-200 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-label-caps text-label-caps mt-1">Log</span>
+</a>
+<!-- Budget (ACTIVE) -->
+<a class="flex flex-col items-center justify-center text-primary border-t-2 border-primary pt-2 active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_balance_wallet</span>
+<span class="font-label-caps text-label-caps mt-1">Budget</span>
+</a>
+<!-- Stats -->
+<a class="flex flex-col items-center justify-center text-secondary pt-2 active:scale-95 transition-transform duration-200 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">query_stats</span>
+<span class="font-label-caps text-label-caps mt-1">Stats</span>
+</a>
+<!-- Settings -->
+<a class="flex flex-col items-center justify-center text-secondary pt-2 active:scale-95 transition-transform duration-200 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-label-caps mt-1">Settings</span>
+</a>
+</nav>
+<script>
+        // Micro-interactions and subtle scroll effects
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 10) {
+                header.classList.add('shadow-md');
+            } else {
+                header.classList.remove('shadow-md');
+            }
+        });
+        
+        // Simple click effects for categories
+        document.querySelectorAll('.group').forEach(el => {
+            el.addEventListener('click', () => {
+                el.style.transform = 'scale(0.99)';
+                setTimeout(() => el.style.transform = 'scale(1)', 100);
+            });
+        });
+    </script>
+</body></html>

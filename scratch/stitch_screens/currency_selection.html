@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Currency Selection</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-background": "#191c1e",
+                    "primary": "#006c49",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-container": "#5c647a",
+                    "surface-dim": "#d8dadc",
+                    "inverse-surface": "#2d3133",
+                    "on-primary-fixed-variant": "#005236",
+                    "primary-fixed-dim": "#4edea3",
+                    "outline-variant": "#bbcabf",
+                    "on-primary-container": "#00422b",
+                    "on-primary-fixed": "#002113",
+                    "secondary-fixed-dim": "#bec6e0",
+                    "tertiary-container": "#94a4bd",
+                    "inverse-primary": "#4edea3",
+                    "surface-container-highest": "#e0e3e5",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#006c49",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-high": "#e6e8ea",
+                    "primary-container": "#10b981",
+                    "surface-container-low": "#f2f4f6",
+                    "tertiary": "#505f76",
+                    "on-tertiary-fixed-variant": "#38485d",
+                    "on-surface-variant": "#3c4a42",
+                    "on-primary": "#ffffff",
+                    "background": "#f7f9fb",
+                    "surface-container": "#eceef0",
+                    "on-secondary-fixed": "#131b2e",
+                    "secondary-container": "#dae2fd",
+                    "on-tertiary-fixed": "#0b1c30",
+                    "secondary": "#565e74",
+                    "outline": "#6c7a71",
+                    "on-tertiary-container": "#2a3a4f",
+                    "error": "#ba1a1a",
+                    "primary-fixed": "#6ffbbe",
+                    "surface": "#f7f9fb",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-fixed-variant": "#3f465c",
+                    "tertiary-fixed-dim": "#b7c8e1",
+                    "surface-bright": "#f7f9fb",
+                    "inverse-on-surface": "#eff1f3",
+                    "surface-variant": "#e0e3e5",
+                    "on-surface": "#191c1e",
+                    "secondary-fixed": "#dae2fd",
+                    "tertiary-fixed": "#d3e4fe"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-lg": "40px",
+                    "base": "8px",
+                    "stack-sm": "12px",
+                    "container-padding": "24px",
+                    "stack-md": "24px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "title-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .currency-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .currency-card:active {
+            transform: scale(0.98);
+        }
+        .scroll-mask {
+            mask-image: linear-gradient(to bottom, black 90%, transparent 100%);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface min-h-screen flex flex-col items-center">
+<!-- TopAppBar -->
+<header class="flex items-center px-container-padding h-16 w-full sticky top-0 z-50 bg-surface dark:bg-on-background">
+<button class="mr-4 p-2 rounded-full hover:bg-surface-container-high dark:hover:bg-surface-variant active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed">arrow_back</span>
+</button>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface dark:text-surface-bright">Currency</h1>
+</header>
+<main class="w-full max-w-2xl px-container-padding flex-1 mb-20">
+<!-- Search/Filter Placeholder for high-end feel -->
+<div class="mt-base mb-stack-md relative">
+<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline">search</span>
+</div>
+<input class="w-full pl-12 pr-4 py-4 bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary text-body-lg placeholder-outline" placeholder="Search currency..." type="text"/>
+</div>
+<!-- Section Title -->
+<div class="mb-stack-sm px-1">
+<p class="font-label-caps text-label-caps text-outline uppercase tracking-wider">All Currencies</p>
+</div>
+<!-- Currency List Stack -->
+<div class="flex flex-col gap-3">
+<!-- PKR (Active State) -->
+<button class="currency-card w-full text-left bg-surface-container-lowest p-4 rounded-xl flex items-center justify-between border-2 border-primary shadow-sm ring-1 ring-primary/10">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold text-lg">
+                        Rs
+                    </div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Pakistani Rupee</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Rs 1,234.56</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps text-primary mr-2">PKR</span>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</button>
+<!-- USD -->
+<button class="currency-card w-full text-left bg-surface-container-lowest p-4 rounded-xl flex items-center justify-between border border-outline-variant hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant font-bold text-lg">
+                        $
+                    </div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">US Dollar</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">$ 1,234.56</p>
+</div>
+</div>
+<span class="font-label-caps text-label-caps text-outline">USD</span>
+</button>
+<!-- EUR -->
+<button class="currency-card w-full text-left bg-surface-container-lowest p-4 rounded-xl flex items-center justify-between border border-outline-variant hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant font-bold text-lg">
+                        €
+                    </div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Euro</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">€ 1,234.56</p>
+</div>
+</div>
+<span class="font-label-caps text-label-caps text-outline">EUR</span>
+</button>
+<!-- GBP -->
+<button class="currency-card w-full text-left bg-surface-container-lowest p-4 rounded-xl flex items-center justify-between border border-outline-variant hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant font-bold text-lg">
+                        £
+                    </div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">British Pound</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">£ 1,234.56</p>
+</div>
+</div>
+<span class="font-label-caps text-label-caps text-outline">GBP</span>
+</button>
+<!-- AED -->
+<button class="currency-card w-full text-left bg-surface-container-lowest p-4 rounded-xl flex items-center justify-between border border-outline-variant hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant font-bold text-lg">
+                        د.إ
+                    </div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">UAE Dirham</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">د.إ 1,234.56</p>
+</div>
+</div>
+<span class="font-label-caps text-label-caps text-outline">AED</span>
+</button>
+<!-- SAR -->
+<button class="currency-card w-full text-left bg-surface-container-lowest p-4 rounded-xl flex items-center justify-between border border-outline-variant hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant font-bold text-lg">
+                        ر.س
+                    </div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Saudi Riyal</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">ر.س 1,234.56</p>
+</div>
+</div>
+<span class="font-label-caps text-label-caps text-outline">SAR</span>
+</button>
+<!-- INR -->
+<button class="currency-card w-full text-left bg-surface-container-lowest p-4 rounded-xl flex items-center justify-between border border-outline-variant hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant font-bold text-lg">
+                        ₹
+                    </div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Indian Rupee</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">₹ 1,234.56</p>
+</div>
+</div>
+<span class="font-label-caps text-label-caps text-outline">INR</span>
+</button>
+</div>
+</main>
+<!-- Bottom Action Area -->
+<div class="fixed bottom-0 left-0 w-full p-container-padding bg-background/80 backdrop-blur-md">
+<button class="w-full bg-primary text-on-primary font-title-md text-title-md py-4 rounded-xl shadow-lg hover:bg-on-primary-fixed-variant active:scale-[0.98] transition-all">
+            Confirm Selection
+        </button>
+</div>
+<!-- Hidden BottomNavBar logic for Top-Level consistency check -->
+<!-- Suppression rule applied: this is a sub-page/task-focused screen with a back action -->
+<script>
+        // Simple micro-interaction for currency selection
+        document.querySelectorAll('.currency-card').forEach(card => {
+            card.addEventListener('click', function() {
+                // Remove active state from all
+                document.querySelectorAll('.currency-card').forEach(c => {
+                    c.classList.remove('border-primary', 'shadow-sm', 'ring-1', 'ring-primary/10');
+                    c.classList.add('border-outline-variant');
+                    const iconDiv = c.querySelector('div:last-child');
+                    const existingCheck = iconDiv.querySelector('.material-symbols-outlined');
+                    if (existingCheck) existingCheck.remove();
+                });
+
+                // Add active state to clicked
+                this.classList.add('border-primary', 'shadow-sm', 'ring-1', 'ring-primary/10');
+                this.classList.remove('border-outline-variant');
+                
+                const lastDiv = this.querySelector('div:last-child');
+                const check = document.createElement('span');
+                check.className = 'material-symbols-outlined text-primary';
+                check.style.fontVariationSettings = "'FILL' 1";
+                check.textContent = 'check_circle';
+                lastDiv.appendChild(check);
+            });
+        });
+    </script>
+</body></html>

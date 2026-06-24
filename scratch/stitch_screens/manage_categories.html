@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Manage Categories - Budget Pro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-background": "#191c1e",
+                    "primary": "#006c49",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-container": "#5c647a",
+                    "surface-dim": "#d8dadc",
+                    "inverse-surface": "#2d3133",
+                    "on-primary-fixed-variant": "#005236",
+                    "primary-fixed-dim": "#4edea3",
+                    "outline-variant": "#bbcabf",
+                    "on-primary-container": "#00422b",
+                    "on-primary-fixed": "#002113",
+                    "secondary-fixed-dim": "#bec6e0",
+                    "tertiary-container": "#94a4bd",
+                    "inverse-primary": "#4edea3",
+                    "surface-container-highest": "#e0e3e5",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#006c49",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-high": "#e6e8ea",
+                    "primary-container": "#10b981",
+                    "surface-container-low": "#f2f4f6",
+                    "tertiary": "#505f76",
+                    "on-tertiary-fixed-variant": "#38485d",
+                    "on-surface-variant": "#3c4a42",
+                    "on-primary": "#ffffff",
+                    "background": "#f7f9fb",
+                    "surface-container": "#eceef0",
+                    "on-secondary-fixed": "#131b2e",
+                    "secondary-container": "#dae2fd",
+                    "on-tertiary-fixed": "#0b1c30",
+                    "secondary": "#565e74",
+                    "outline": "#6c7a71",
+                    "on-tertiary-container": "#2a3a4f",
+                    "error": "#ba1a1a",
+                    "primary-fixed": "#6ffbbe",
+                    "surface": "#f7f9fb",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-fixed-variant": "#3f465c",
+                    "tertiary-fixed-dim": "#b7c8e1",
+                    "surface-bright": "#f7f9fb",
+                    "inverse-on-surface": "#eff1f3",
+                    "surface-variant": "#e0e3e5",
+                    "on-surface": "#191c1e",
+                    "secondary-fixed": "#dae2fd",
+                    "tertiary-fixed": "#d3e4fe"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-lg": "40px",
+                    "base": "8px",
+                    "stack-sm": "12px",
+                    "container-padding": "24px",
+                    "stack-md": "24px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "title-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .drag-ghost {
+            opacity: 0.5;
+            background: #e6e8ea;
+        }
+        .sortable-item {
+            transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease;
+        }
+        .sortable-item:active {
+            cursor: grabbing;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-on-surface">
+<!-- Top App Bar (Custom for "Back" context) -->
+<header class="flex items-center px-container-padding h-16 w-full sticky top-0 z-50 bg-surface">
+<button class="mr-4 p-2 rounded-full hover:bg-surface-container-high active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-primary" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface font-bold tracking-tight">Categories</h1>
+</header>
+<main class="max-w-3xl mx-auto px-container-padding pb-32 pt-stack-sm">
+<p class="font-body-sm text-on-surface-variant mb-stack-md">Drag handles to reorder your spending priorities.</p>
+<!-- Category List -->
+<div class="space-y-base" id="category-list">
+<!-- Category Item 1 -->
+<div class="sortable-item flex items-center justify-between p-4 bg-surface-container-lowest border border-outline-variant rounded-xl group hover:border-primary transition-colors cursor-default" draggable="true">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="restaurant">restaurant</span>
+</div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Food &amp; Dining</h3>
+<p class="font-body-sm text-on-surface-variant">Monthly cap: $600</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline cursor-grab active:cursor-grabbing hover:text-primary transition-colors" data-icon="drag_handle">drag_handle</span>
+</div>
+</div>
+<!-- Category Item 2 -->
+<div class="sortable-item flex items-center justify-between p-4 bg-surface-container-lowest border border-outline-variant rounded-xl group hover:border-primary transition-colors cursor-default" draggable="true">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="local_gas_station">local_gas_station</span>
+</div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Fuel &amp; Transport</h3>
+<p class="font-body-sm text-on-surface-variant">Monthly cap: $250</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline cursor-grab active:cursor-grabbing hover:text-primary transition-colors" data-icon="drag_handle">drag_handle</span>
+</div>
+</div>
+<!-- Category Item 3 -->
+<div class="sortable-item flex items-center justify-between p-4 bg-surface-container-lowest border border-outline-variant rounded-xl group hover:border-primary transition-colors cursor-default" draggable="true">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="checkroom">checkroom</span>
+</div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Clothes &amp; Style</h3>
+<p class="font-body-sm text-on-surface-variant">Monthly cap: $150</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline cursor-grab active:cursor-grabbing hover:text-primary transition-colors" data-icon="drag_handle">drag_handle</span>
+</div>
+</div>
+<!-- Category Item 4 -->
+<div class="sortable-item flex items-center justify-between p-4 bg-surface-container-lowest border border-outline-variant rounded-xl group hover:border-primary transition-colors cursor-default" draggable="true">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="home_repair_service">home_repair_service</span>
+</div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Rent &amp; Utilities</h3>
+<p class="font-body-sm text-on-surface-variant">Monthly cap: $1,800</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline cursor-grab active:cursor-grabbing hover:text-primary transition-colors" data-icon="drag_handle">drag_handle</span>
+</div>
+</div>
+<!-- Category Item 5 -->
+<div class="sortable-item flex items-center justify-between p-4 bg-surface-container-lowest border border-outline-variant rounded-xl group hover:border-primary transition-colors cursor-default" draggable="true">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="fitness_center">fitness_center</span>
+</div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Health &amp; Fitness</h3>
+<p class="font-body-sm text-on-surface-variant">Monthly cap: $80</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline cursor-grab active:cursor-grabbing hover:text-primary transition-colors" data-icon="drag_handle">drag_handle</span>
+</div>
+</div>
+<!-- Category Item 6 -->
+<div class="sortable-item flex items-center justify-between p-4 bg-surface-container-lowest border border-outline-variant rounded-xl group hover:border-primary transition-colors cursor-default" draggable="true">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="movie">movie</span>
+</div>
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Entertainment</h3>
+<p class="font-body-sm text-on-surface-variant">Monthly cap: $120</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline cursor-grab active:cursor-grabbing hover:text-primary transition-colors" data-icon="drag_handle">drag_handle</span>
+</div>
+</div>
+</div>
+<!-- Add Category Interaction Area -->
+<div class="mt-stack-lg p-container-padding bg-emerald-50 border-2 border-dashed border-emerald-200 rounded-2xl flex flex-col items-center justify-center text-center">
+<div class="mb-4">
+<span class="material-symbols-outlined text-primary text-4xl" data-icon="playlist_add">playlist_add</span>
+</div>
+<h3 class="font-title-md text-title-md text-primary mb-1">Create Custom Category</h3>
+<p class="font-body-sm text-on-surface-variant max-w-xs mx-auto">Organize your finances exactly how you live. Add tags, icons, and limits.</p>
+</div>
+</main>
+<!-- Floating Action Button Cluster (Fixed Bottom) -->
+<div class="fixed bottom-0 left-0 w-full p-container-padding pointer-events-none">
+<div class="max-w-3xl mx-auto flex justify-center pointer-events-auto">
+<button class="flex items-center gap-3 bg-primary text-on-primary px-8 h-14 rounded-full shadow-lg hover:bg-on-primary-fixed-variant active:scale-95 transition-all group">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+<span class="font-label-caps text-label-caps">Add Category</span>
+</button>
+</div>
+</div>
+<script>
+        const dragItems = document.querySelectorAll('.sortable-item');
+        const container = document.getElementById('category-list');
+
+        dragItems.forEach(item => {
+            item.addEventListener('dragstart', () => {
+                setTimeout(() => item.classList.add('drag-ghost'), 0);
+            });
+
+            item.addEventListener('dragend', () => {
+                item.classList.remove('drag-ghost');
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(container, e.clientY);
+                const draggable = document.querySelector('.drag-ghost');
+                if (afterElement == null) {
+                    container.appendChild(draggable);
+                } else {
+                    container.insertBefore(draggable, afterElement);
+                }
+            });
+        });
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.sortable-item:not(.drag-ghost)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        // Micro-interaction for the "Back" button
+        document.querySelector('button[class*="mr-4"]').addEventListener('click', () => {
+            document.body.style.opacity = '0';
+            document.body.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => {
+                window.history.back();
+            }, 300);
+        });
+    </script>
+</body></html>

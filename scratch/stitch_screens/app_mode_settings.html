@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>App Mode Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-background": "#191c1e",
+                    "primary": "#006c49",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-container": "#5c647a",
+                    "surface-dim": "#d8dadc",
+                    "inverse-surface": "#2d3133",
+                    "on-primary-fixed-variant": "#005236",
+                    "primary-fixed-dim": "#4edea3",
+                    "outline-variant": "#bbcabf",
+                    "on-primary-container": "#00422b",
+                    "on-primary-fixed": "#002113",
+                    "secondary-fixed-dim": "#bec6e0",
+                    "tertiary-container": "#94a4bd",
+                    "inverse-primary": "#4edea3",
+                    "surface-container-highest": "#e0e3e5",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#006c49",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-high": "#e6e8ea",
+                    "primary-container": "#10b981",
+                    "surface-container-low": "#f2f4f6",
+                    "tertiary": "#505f76",
+                    "on-tertiary-fixed-variant": "#38485d",
+                    "on-surface-variant": "#3c4a42",
+                    "on-primary": "#ffffff",
+                    "background": "#f7f9fb",
+                    "surface-container": "#eceef0",
+                    "on-secondary-fixed": "#131b2e",
+                    "secondary-container": "#dae2fd",
+                    "on-tertiary-fixed": "#0b1c30",
+                    "secondary": "#565e74",
+                    "outline": "#6c7a71",
+                    "on-tertiary-container": "#2a3a4f",
+                    "error": "#ba1a1a",
+                    "primary-fixed": "#6ffbbe",
+                    "surface": "#f7f9fb",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-fixed-variant": "#3f465c",
+                    "tertiary-fixed-dim": "#b7c8e1",
+                    "surface-bright": "#f7f9fb",
+                    "inverse-on-surface": "#eff1f3",
+                    "surface-variant": "#e0e3e5",
+                    "on-surface": "#191c1e",
+                    "secondary-fixed": "#dae2fd",
+                    "tertiary-fixed": "#d3e4fe"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-lg": "40px",
+                    "base": "8px",
+                    "stack-sm": "12px",
+                    "container-padding": "24px",
+                    "stack-md": "24px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "title-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mode-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .active-ring {
+            box-shadow: 0 0 0 2px #006c49;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .mode-selected .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-on-surface">
+<!-- Top Navigation Bar -->
+<header class="flex items-center px-container-padding h-16 w-full sticky top-0 z-50 bg-surface dark:bg-on-background">
+<button aria-label="Go back" class="mr-4 p-2 hover:bg-surface-container-high dark:hover:bg-surface-variant rounded-full transition-transform active:scale-95">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed">arrow_back</span>
+</button>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface dark:text-surface-bright flex-1">App Mode</h1>
+<div class="w-10"></div> <!-- Balance spacer -->
+</header>
+<main class="max-w-3xl mx-auto px-container-padding py-stack-md pb-32">
+<!-- Instructional Header -->
+<section class="mb-stack-lg">
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-2">Choose how you want to manage your finances. You can switch this at any time.</p>
+</section>
+<!-- Mode Selection Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<!-- Budget Mode Card -->
+<label class="relative block cursor-pointer group" for="mode-budget">
+<input checked="" class="hidden peer" id="mode-budget" name="app_mode" onchange="updateUI()" type="radio"/>
+<div class="mode-card h-full p-stack-md bg-surface-container-lowest border border-outline-variant rounded-xl peer-checked:border-primary peer-checked:bg-primary-container/10 peer-checked:ring-2 peer-checked:ring-primary shadow-sm hover:shadow-md transition-all">
+<div class="flex justify-between items-start mb-base">
+<div class="w-12 h-12 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl">savings</span>
+</div>
+<div class="peer-checked:block hidden">
+<span class="material-symbols-outlined text-primary">check_circle</span>
+</div>
+</div>
+<h2 class="font-title-md text-title-md text-on-surface mb-2">Budget Mode</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                        Proactive financial planning. Set monthly limits for categories, track remaining balances, and get alerts before you overspend. Best for disciplined savings.
+                    </p>
+<div class="mt-stack-sm flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-label-caps text-on-surface-variant">LIMITS</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-label-caps text-on-surface-variant">PLANNING</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-label-caps text-on-surface-variant">ALERTS</span>
+</div>
+</div>
+</label>
+<!-- Tracker Mode Card -->
+<label class="relative block cursor-pointer group" for="mode-tracker">
+<input class="hidden peer" id="mode-tracker" name="app_mode" onchange="updateUI()" type="radio"/>
+<div class="mode-card h-full p-stack-md bg-surface-container-lowest border border-outline-variant rounded-xl peer-checked:border-primary peer-checked:bg-primary-container/10 peer-checked:ring-2 peer-checked:ring-primary shadow-sm hover:shadow-md transition-all">
+<div class="flex justify-between items-start mb-base">
+<div class="w-12 h-12 rounded-lg bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl">analytics</span>
+</div>
+<div class="peer-checked:block hidden">
+<span class="material-symbols-outlined text-primary">check_circle</span>
+</div>
+</div>
+<h2 class="font-title-md text-title-md text-on-surface mb-2">Tracker Mode</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                        Observational tracking. Log every expense as it happens to understand where your money goes. No strict limits, just pure visibility into spending habits.
+                    </p>
+<div class="mt-stack-sm flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-label-caps text-on-surface-variant">HISTORY</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-label-caps text-on-surface-variant">INSIGHTS</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-label-caps text-on-surface-variant">LOGGING</span>
+</div>
+</div>
+</label>
+</div>
+<!-- Featured Visualization (Contextual Image) -->
+<section class="mt-stack-lg rounded-xl overflow-hidden border border-outline-variant h-64 relative group">
+<div class="absolute inset-0 bg-gradient-to-t from-on-background/60 to-transparent z-10" id="visual-overlay"></div>
+<div class="absolute inset-0 transition-opacity duration-700 opacity-100" data-alt="A professional and minimalist dashboard interface for a budgeting app on a sleek smartphone. The screen displays vibrant green progress bars, clear numerical balances, and neatly organized spending categories like groceries and travel. The lighting is soft and bright, highlighting a clean, white-themed UI that evokes a sense of financial control and professional clarity." id="mode-image-budget" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD4gZOYh-Rz0BZ0HM9kDUbGIcj-IG3G0Fvr9wU2aC-lbBBoydT_QjXNzpK3LOxu9mKzBiVjm2ph8BTmTr2mFHvyAmFRqIVbOYQOD8RxA2LqUqRnr_MfCJG7hQVqcbeSv7ch-0WLuPjqYTKhrvvIg344vyf4TIrNaZeoBJEvkPDjuHf03GKHcNhVNFP6e0R38IW2a_KqJg-r_bLpQMRqf0MyQdKkAC1UQnbPSv518F-tPj08vNd0W6gc7MiF5FJVE8jRDTG8EksNXpo')">
+</div>
+<div class="absolute inset-0 transition-opacity duration-700 opacity-0" data-alt="A sophisticated data visualization screen on a mobile device showing detailed spending graphs and trend lines. The interface features a dark-mode-inspired deep charcoal background with elegant emerald green and soft blue data points. High-end SaaS aesthetic with generous whitespace and precise typography, conveying a mood of deep financial analysis and technological intelligence." id="mode-image-tracker" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAzGfnyuAcaoVT2lZ8bNmLAoX9t-Ok37Lb2YwPGV7goyXM76E9ZRD2ll0_G03cmgwGS_WoXYGTMaF5p8_Q2PpbRRMNkXxTrl85BBvy9tSrWx7003Z9vPUISWQYiJx6AqUzBs3or_k3vW4PN7Ugq9jnJ1s2q7GxpfF7Y3S-p7NwL_51ruzzHanTMC1c3wiRyVWZIFdeRIljibWoBU25g1ON7Qje1kcNFb8sIJuZW05FSrHXIFYks_dBVGT11KhqhluFYbNMKsaWM_iM')">
+</div>
+<div class="absolute bottom-4 left-4 z-20">
+<h3 class="text-white font-title-md text-title-md" id="visual-title">Focus on your goals</h3>
+<p class="text-white/80 font-body-sm text-body-sm" id="visual-desc">Visualizing your path to financial freedom.</p>
+</div>
+</section>
+<!-- Configuration Toggle Section -->
+<section class="mt-stack-lg bg-surface-container-low rounded-xl p-stack-md border border-outline-variant">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-stack-sm">DETAILED SETTINGS</h3>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div>
+<p class="font-body-lg text-on-surface">Auto-switch based on date</p>
+<p class="text-xs text-on-surface-variant">Switch to Budget Mode on the 1st of the month</p>
+</div>
+<button class="w-12 h-6 bg-surface-container-highest rounded-full relative transition-colors" onclick="this.classList.toggle('bg-primary'); this.children[0].classList.toggle('translate-x-6')">
+<div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform"></div>
+</button>
+</div>
+<div class="border-t border-outline-variant pt-4 flex items-center justify-between">
+<div>
+<p class="font-body-lg text-on-surface">Advanced Analytics</p>
+<p class="text-xs text-on-surface-variant">Enable deeper insights for the selected mode</p>
+</div>
+<button class="w-12 h-6 bg-primary rounded-full relative transition-colors" onclick="this.classList.toggle('bg-primary'); this.children[0].classList.toggle('translate-x-6')">
+<div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full translate-x-6 transition-transform"></div>
+</button>
+</div>
+</div>
+</section>
+<button class="w-full mt-stack-lg bg-primary text-on-primary py-4 rounded-xl font-semibold hover:opacity-90 active:scale-95 transition-all shadow-lg">
+            Save Preference
+        </button>
+</main>
+<!-- Bottom Navigation Bar (Shell) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 h-20 bg-surface-container-lowest dark:bg-inverse-surface border-t border-outline-variant dark:border-outline shadow-sm md:hidden">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-2 hover:text-primary-container" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps mt-1">Dash</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-2 hover:text-primary-container" href="#">
+<span class="material-symbols-outlined">add_box</span>
+<span class="font-label-caps text-label-caps mt-1">Log</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-2 hover:text-primary-container" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-label-caps text-label-caps mt-1">Budget</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-2 hover:text-primary-container" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="font-label-caps text-label-caps mt-1">Stats</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed border-t-2 border-primary dark:border-primary-fixed pt-2" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-caps text-label-caps mt-1">Settings</span>
+</a>
+</nav>
+<script>
+        function updateUI() {
+            const isBudget = document.getElementById('mode-budget').checked;
+            const budgetImg = document.getElementById('mode-image-budget');
+            const trackerImg = document.getElementById('mode-image-tracker');
+            const visualTitle = document.getElementById('visual-title');
+            const visualDesc = document.getElementById('visual-desc');
+
+            if (isBudget) {
+                budgetImg.style.opacity = '1';
+                trackerImg.style.opacity = '0';
+                visualTitle.textContent = 'Focus on your goals';
+                visualDesc.textContent = 'Visualizing your path to financial freedom.';
+            } else {
+                budgetImg.style.opacity = '0';
+                trackerImg.style.opacity = '1';
+                visualTitle.textContent = 'Master your habits';
+                visualDesc.textContent = 'Understand every flow with advanced tracking.';
+            }
+        }
+
+        // Initialize state
+        window.addEventListener('DOMContentLoaded', updateUI);
+    </script>
+</body></html>

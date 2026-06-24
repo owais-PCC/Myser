@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Settings - Professional Fresh Budgeting</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#191c1e",
+                        "primary": "#006c49",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-container": "#5c647a",
+                        "surface-dim": "#d8dadc",
+                        "inverse-surface": "#2d3133",
+                        "on-primary-fixed-variant": "#005236",
+                        "primary-fixed-dim": "#4edea3",
+                        "outline-variant": "#bbcabf",
+                        "on-primary-container": "#00422b",
+                        "on-primary-fixed": "#002113",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "tertiary-container": "#94a4bd",
+                        "inverse-primary": "#4edea3",
+                        "surface-container-highest": "#e0e3e5",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#006c49",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-high": "#e6e8ea",
+                        "primary-container": "#10b981",
+                        "surface-container-low": "#f2f4f6",
+                        "tertiary": "#505f76",
+                        "on-tertiary-fixed-variant": "#38485d",
+                        "on-surface-variant": "#3c4a42",
+                        "on-primary": "#ffffff",
+                        "background": "#f7f9fb",
+                        "surface-container": "#eceef0",
+                        "on-secondary-fixed": "#131b2e",
+                        "secondary-container": "#dae2fd",
+                        "on-tertiary-fixed": "#0b1c30",
+                        "secondary": "#565e74",
+                        "outline": "#6c7a71",
+                        "on-tertiary-container": "#2a3a4f",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#6ffbbe",
+                        "surface": "#f7f9fb",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "tertiary-fixed-dim": "#b7c8e1",
+                        "surface-bright": "#f7f9fb",
+                        "inverse-on-surface": "#eff1f3",
+                        "surface-variant": "#e0e3e5",
+                        "on-surface": "#191c1e",
+                        "secondary-fixed": "#dae2fd",
+                        "tertiary-fixed": "#d3e4fe"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "40px",
+                        "base": "8px",
+                        "stack-sm": "12px",
+                        "container-padding": "24px",
+                        "stack-md": "24px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "title-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            font-size: 24px;
+        }
+        .card-shadow {
+            box-shadow: 0px 4px 20px rgba(15, 23, 42, 0.05);
+        }
+        .active-scale:active {
+            transform: scale(0.98);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-lg min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="flex items-center px-container-padding h-16 w-full sticky top-0 z-50 bg-surface dark:bg-on-background transition-colors">
+<div class="flex items-center justify-between w-full">
+<div class="flex items-center gap-4">
+<button class="active:scale-95 transition-transform text-primary dark:text-primary-fixed">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface dark:text-surface-bright">Settings</h1>
+</div>
+<div class="text-primary dark:text-primary-fixed font-label-caps text-label-caps">
+                June 2026
+            </div>
+</div>
+</header>
+<main class="flex-1 max-w-2xl mx-auto w-full px-container-padding py-stack-md">
+<!-- Profile Anchor -->
+<div class="flex items-center gap-gutter p-container-padding mb-stack-md bg-surface-container-lowest rounded-xl card-shadow border border-outline-variant/30">
+<div class="w-16 h-16 rounded-full bg-primary-container/20 flex items-center justify-center overflow-hidden border-2 border-primary-container/30">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a young financial consultant in a bright, modern studio. The lighting is soft and high-key, creating a clean light-mode aesthetic. The individual has a confident, approachable expression, wearing a stylish minimalist emerald green sweater that matches the corporate brand colors. The background is a soft-focus white office space with plenty of light." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCffQFvtwTdIIV9qkz5qgK1MALhmYcuaX00AwrZntf7k8g2MD6j-3PVsDcTQCcrmYp356obCZrv0IewdFzFk6ivYw_y4jKJxMP6Imy7aXR25FTZUYufL6UiQTd-pgQzZNIuUwYK1aY3JO3is0d_uC3ecnGbBw7gAiR_h8_oZbyHD9EqfqtvrcMKWx6nCP9cwHqCy9e9nJVrI_Qb1zuNtj01KUTjVttRuahwYCjf2U6X_Ad21El_1RD7B-qoIGjR38aBeLpetRJO9nQ"/>
+</div>
+<div>
+<h2 class="font-title-md text-title-md">Hamza Ahmed</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Premium Member</p>
+</div>
+<div class="ml-auto">
+<span class="material-symbols-outlined text-outline">verified</span>
+</div>
+</div>
+<!-- Settings List Section -->
+<div class="space-y-base">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant px-2 pb-2">PREFERENCES</h3>
+<div class="bg-surface-container-lowest rounded-xl card-shadow border border-outline-variant/30 overflow-hidden divide-y divide-outline-variant/20">
+<!-- Currency -->
+<button class="w-full flex items-center justify-between p-container-padding hover:bg-surface-container-low transition-colors active-scale text-left">
+<div class="flex items-center gap-gutter">
+<span class="material-symbols-outlined text-on-surface-variant">payments</span>
+<div>
+<span class="font-body-lg text-body-lg block">Currency</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-body-sm text-body-sm text-primary font-semibold">PKR</span>
+<span class="material-symbols-outlined text-outline text-sm">chevron_right</span>
+</div>
+</button>
+<!-- Categories -->
+<button class="w-full flex items-center justify-between p-container-padding hover:bg-surface-container-low transition-colors active-scale text-left">
+<div class="flex items-center gap-gutter">
+<span class="material-symbols-outlined text-on-surface-variant">category</span>
+<div>
+<span class="font-body-lg text-body-lg block">Categories</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+<!-- App Mode -->
+<button class="w-full flex items-center justify-between p-container-padding hover:bg-surface-container-low transition-colors active-scale text-left">
+<div class="flex items-center gap-gutter">
+<span class="material-symbols-outlined text-on-surface-variant">settings_suggest</span>
+<div>
+<span class="font-body-lg text-body-lg block">App Mode</span>
+<span class="text-[10px] text-on-secondary-container leading-none uppercase tracking-widest font-bold">Budget vs Tracker</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Budget</span>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</div>
+</button>
+</div>
+<h3 class="font-label-caps text-label-caps text-on-surface-variant px-2 pt-stack-md pb-2 uppercase">System</h3>
+<div class="bg-surface-container-lowest rounded-xl card-shadow border border-outline-variant/30 overflow-hidden divide-y divide-outline-variant/20">
+<!-- Notifications -->
+<button class="w-full flex items-center justify-between p-container-padding hover:bg-surface-container-low transition-colors active-scale text-left">
+<div class="flex items-center gap-gutter">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<div>
+<span class="font-body-lg text-body-lg block">Notifications</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+<!-- Security -->
+<button class="w-full flex items-center justify-between p-container-padding hover:bg-surface-container-low transition-colors active-scale text-left">
+<div class="flex items-center gap-gutter">
+<span class="material-symbols-outlined text-on-surface-variant">security</span>
+<div>
+<span class="font-body-lg text-body-lg block">Security</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+</div>
+<!-- Danger Zone -->
+<div class="pt-stack-md pb-stack-lg">
+<button class="w-full flex items-center justify-center gap-2 p-container-padding bg-error-container/20 text-error border border-error/20 rounded-xl font-semibold active-scale transition-all">
+<span class="material-symbols-outlined">logout</span>
+                    Sign Out
+                </button>
+</div>
+</div>
+<!-- Atmospheric Illustration -->
+<div class="mt-stack-lg flex flex-col items-center opacity-40 grayscale pointer-events-none">
+<div class="w-24 h-24 mb-4">
+<img class="w-full h-full object-contain" data-alt="A minimalist, clean vector line art illustration of a shield with a dollar sign inside, surrounded by soft geometric abstract shapes. The style is professional and fresh, using thin slate and emerald green strokes with generous white space around the subject. The lighting is flat and modern, suitable for a high-end SaaS application." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKCTHG4tB_wOXf8KzCKb_q5YoWXh8pFChHxxDZjjAxexnh-Kda6kdyoXXs8JcS0J2YxBI2tb2Sus8ppMa_-lg_hm0Dod2rDM9EcQyPu65paACez_qvF31T3s4SIjid3tIUn_4bRCebzhUU-JfAqDZZ4JCAyo2PWZo_rF-IF4sSypBsiXOE0CGElYIVlN4F7cX7fKm9UVRUO_qIsEQRqQbEL4wv6S1e0obwO2gLhKM0Y-yZYtzlQgKG6Ni8y3iaAcMkhda2mLBJMP8"/>
+</div>
+<p class="font-label-caps text-label-caps text-center">Version 4.2.0-stable</p>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 h-20 bg-surface-container-lowest dark:bg-inverse-surface shadow-sm border-t border-outline-variant dark:border-outline">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-2 hover:text-primary-container transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps">Dash</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-2 hover:text-primary-container transition-all" href="#">
+<span class="material-symbols-outlined">add_box</span>
+<span class="font-label-caps text-label-caps">Log</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-2 hover:text-primary-container transition-all" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-label-caps text-label-caps">Budget</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-2 hover:text-primary-container transition-all" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="font-label-caps text-label-caps">Stats</span>
+</a>
+<!-- ACTIVE TAB: Settings -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed border-t-2 border-primary dark:border-primary-fixed pt-2 transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</a>
+</nav>
+<!-- Content Spacer for Mobile Nav -->
+<div class="h-24"></div>
+<script>
+        // Micro-interaction for list items
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                const chevron = btn.querySelector('.material-symbols-outlined:last-child');
+                if (chevron && chevron.innerText === 'chevron_right') {
+                    chevron.style.transform = 'translateX(4px)';
+                    chevron.style.transition = 'transform 0.2s ease-out';
+                }
+            });
+            btn.addEventListener('mouseleave', () => {
+                const chevron = btn.querySelector('.material-symbols-outlined:last-child');
+                if (chevron && chevron.innerText === 'chevron_right') {
+                    chevron.style.transform = 'translateX(0px)';
+                }
+            });
+        });
+    </script>
+</body></html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Financially - Log Expense</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#e6e8ea",
+                        "surface-container-highest": "#e0e3e5",
+                        "on-surface": "#191c1e",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "on-primary-fixed-variant": "#005236",
+                        "inverse-primary": "#4edea3",
+                        "secondary-fixed": "#dae2fd",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#d8dadc",
+                        "primary-fixed-dim": "#4edea3",
+                        "primary-container": "#10b981",
+                        "inverse-on-surface": "#eff1f3",
+                        "outline-variant": "#bbcabf",
+                        "inverse-surface": "#2d3133",
+                        "primary-fixed": "#6ffbbe",
+                        "surface-container": "#eceef0",
+                        "secondary": "#565e74",
+                        "tertiary-container": "#94a4bd",
+                        "surface-tint": "#006c49",
+                        "on-primary-container": "#00422b",
+                        "on-tertiary-fixed": "#0b1c30",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "on-secondary": "#ffffff",
+                        "primary": "#006c49",
+                        "on-secondary-container": "#5c647a",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#3c4a42",
+                        "tertiary": "#505f76",
+                        "tertiary-fixed": "#d3e4fe",
+                        "surface-bright": "#f7f9fb",
+                        "on-primary-fixed": "#002113",
+                        "on-error": "#ffffff",
+                        "surface-container-low": "#f2f4f6",
+                        "background": "#f7f9fb",
+                        "surface": "#f7f9fb",
+                        "on-tertiary-container": "#2a3a4f",
+                        "tertiary-fixed-dim": "#b7c8e1",
+                        "on-background": "#191c1e",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-container": "#dae2fd",
+                        "on-secondary-fixed": "#131b2e",
+                        "surface-variant": "#e0e3e5",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#38485d",
+                        "error-container": "#ffdad6",
+                        "outline": "#6c7a71"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "container-padding": "24px",
+                        "stack-sm": "12px",
+                        "stack-lg": "40px",
+                        "stack-md": "24px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "body-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-key {
+            background-color: #e0e3e5;
+            transform: scale(0.95);
+        }
+        input:focus {
+            outline: none;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-lg min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-background dark:bg-background z-40">
+<div class="flex justify-between items-center px-container-padding py-base w-full max-w-7xl mx-auto">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low transition-colors p-2 rounded-full active:scale-95 duration-150">
+                    arrow_back
+                </button>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary dark:text-primary-fixed">Log Expense</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low transition-colors p-2 rounded-full active:scale-95 duration-150">
+                    notifications
+                </button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A professional close-up studio portrait of a young adult with a friendly expression. The person has clean-cut features and is set against a soft, neutral off-white background that matches the high-end light-mode UI aesthetic of a financial application. The lighting is bright and even, reinforcing a mood of trust and professionalism." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAo00a14kH-wQWSqsQWxWAlnOKgfgizMQQ1wJmfkjE9zDD7YV9hzGb02Pg4bUjyCMhTMTNcMXUX14JotDQF4tk6hYYJCH5P22EdA5ExBpxfUxb3ncnHWL6y08YEuBOtJR8u05JJkLGWwLBDUuoVyyB-Pi6CqQzOD4U_aP9LuNuyDhI-4V4tyo7r95_c96F3oAn3QLE0Hw7FQfVLn4xSPUmU0TUJU2CGV5dDS-m5kGmV2no7XYZM38auGCd6aifVUj6O6A4fHqWdSLM">
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-md mx-auto px-container-padding space-y-stack-md mt-4">
+<!-- Amount Display Section -->
+<section class="bg-surface-container-lowest rounded-xl p-stack-md border border-outline-variant shadow-[0px_4px_20px_rgba(15,23,42,0.05)] text-center space-y-4">
+<div class="space-y-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant opacity-70">ENTERING AMOUNT</span>
+<div class="flex items-baseline justify-center gap-2">
+<span class="font-title-md text-title-md text-secondary">Rs</span>
+<span class="font-display-lg text-display-lg text-on-surface" id="amount-display">0</span>
+</div>
+</div>
+<div class="inline-flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-full border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span class="font-body-sm text-body-sm">Today, 20 June 2026</span>
+<span class="material-symbols-outlined text-[18px]">expand_more</span>
+</div>
+</section>
+<!-- Category Grid -->
+<section class="space-y-4">
+<div class="flex justify-between items-center">
+<h2 class="font-title-md text-title-md">Category</h2>
+<button class="text-primary font-body-sm text-body-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">settings</span>
+                    Manage
+                </button>
+</div>
+<div class="grid grid-cols-4 gap-3">
+<!-- Food -->
+<button class="category-btn group flex flex-col items-center gap-2 rounded-xl border-2 border-primary bg-primary-container/10 transition-all active:scale-95 p-2" data-category="Food">
+<div class="flex items-center justify-center bg-primary text-on-primary rounded-lg w-8 h-8">
+<span class="material-symbols-outlined">restaurant</span>
+</div>
+<span class="font-label-caps text-label-caps text-primary">Food</span>
+</button>
+<!-- Fuel -->
+<button class="category-btn group flex flex-col items-center gap-2 rounded-xl border-2 border-transparent bg-surface-container-lowest hover:border-outline-variant transition-all active:scale-95 p-2" data-category="Fuel">
+<div class="flex items-center justify-center bg-surface-container-high text-on-surface rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors w-8 h-8">
+<span class="material-symbols-outlined">local_gas_station</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Fuel</span>
+</button>
+<!-- Clothes -->
+<button class="category-btn group flex flex-col items-center gap-2 rounded-xl border-2 border-transparent bg-surface-container-lowest hover:border-outline-variant transition-all active:scale-95 p-2" data-category="Clothes">
+<div class="flex items-center justify-center bg-surface-container-high text-on-surface rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors w-8 h-8">
+<span class="material-symbols-outlined">apparel</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Clothes</span>
+</button>
+<!-- Utilities -->
+<button class="category-btn group flex flex-col items-center gap-2 rounded-xl border-2 border-transparent bg-surface-container-lowest hover:border-outline-variant transition-all active:scale-95 p-2" data-category="Utilities">
+<div class="flex items-center justify-center bg-surface-container-high text-on-surface rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors w-8 h-8">
+<span class="material-symbols-outlined">lightbulb</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Utils</span>
+</button>
+<!-- Transport -->
+<button class="category-btn group flex flex-col items-center gap-2 rounded-xl border-2 border-transparent bg-surface-container-lowest hover:border-outline-variant transition-all active:scale-95 p-2" data-category="Transport">
+<div class="flex items-center justify-center bg-surface-container-high text-on-surface rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors w-8 h-8">
+<span class="material-symbols-outlined">directions_bus</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Transit</span>
+</button>
+<!-- Health -->
+<button class="category-btn group flex flex-col items-center gap-2 rounded-xl border-2 border-transparent bg-surface-container-lowest hover:border-outline-variant transition-all active:scale-95 p-2" data-category="Health">
+<div class="flex items-center justify-center bg-surface-container-high text-on-surface rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors w-8 h-8">
+<span class="material-symbols-outlined">medical_services</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Health</span>
+</button>
+<!-- Leisure -->
+<button class="category-btn group flex flex-col items-center gap-2 rounded-xl border-2 border-transparent bg-surface-container-lowest hover:border-outline-variant transition-all active:scale-95 p-2" data-category="Leisure">
+<div class="flex items-center justify-center bg-surface-container-high text-on-surface rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors w-8 h-8">
+<span class="material-symbols-outlined">movie</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Leisure</span>
+</button>
+<!-- Other -->
+<button class="category-btn group flex flex-col items-center gap-2 rounded-xl border-2 border-transparent bg-surface-container-lowest hover:border-outline-variant transition-all active:scale-95 p-2" data-category="Other">
+<div class="flex items-center justify-center bg-surface-container-high text-on-surface rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors w-8 h-8">
+<span class="material-symbols-outlined">grid_view</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Other</span>
+</button>
+</div>
+</section>
+<!-- Note Input -->
+<section class="space-y-2">
+<div class="flex items-center gap-3 bg-surface-container-lowest p-4 rounded-xl border border-outline-variant focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+<span class="material-symbols-outlined text-on-surface-variant">edit_note</span>
+<input class="w-full bg-transparent border-none p-0 text-body-lg font-body-lg text-on-surface placeholder:text-on-surface-variant/50" placeholder="Add a note (optional)" type="text">
+</div>
+</section>
+<!-- Numpad & Action -->
+<section class="bg-surface-container-low rounded-t-3xl -mx-container-padding px-container-padding pt-6 pb-28 space-y-6">
+<div class="grid grid-cols-3 gap-3">
+<!-- Row 1 -->
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val="1">1</button>
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val="2">2</button>
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val="3">3</button>
+<!-- Row 2 -->
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val="4">4</button>
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val="5">5</button>
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val="6">6</button>
+<!-- Row 3 -->
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val="7">7</button>
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val="8">8</button>
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val="9">9</button>
+<!-- Row 4 -->
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val=".">.</button>
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md hover:bg-surface-container-high transition-colors active:scale-95" data-val="0">0</button>
+<button class="numpad-key h-14 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm font-title-md text-title-md flex items-center justify-center hover:bg-surface-container-high transition-colors active:scale-95" data-val="back">
+<span class="material-symbols-outlined">backspace</span>
+</button>
+</div>
+<button class="w-full py-4 bg-primary text-on-primary rounded-xl font-title-md text-title-md shadow-lg shadow-primary/20 active:scale-95 transition-all duration-150">
+                Save Expense
+            </button>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 bg-surface-container-lowest dark:bg-surface-container-lowest border-t border-outline-variant dark:border-outline shadow-[0px_-4px_20px_rgba(15,23,42,0.05)] rounded-t-xl">
+<div class="flex justify-around items-center px-4 pb-4 pt-2">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-secondary-fixed-variant pt-2 hover:text-primary-container transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">grid_view</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-secondary-fixed-variant pt-2 hover:text-primary-container transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-label-caps text-label-caps">Budgets</span>
+</a>
+<!-- Active Item: Log (Add) -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed border-t-2 border-primary pt-2 hover:text-primary-container transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add_circle</span>
+<span class="font-label-caps text-label-caps">Add</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-secondary-fixed-variant pt-2 hover:text-primary-container transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-caps text-label-caps">Insights</span>
+</a>
+</div>
+</nav>
+<script>
+        // Numpad logic
+        const display = document.getElementById('amount-display');
+        let currentAmount = "0";
+
+        document.querySelectorAll('.numpad-key').forEach(button => {
+            button.addEventListener('click', () => {
+                const val = button.getAttribute('data-val');
+                
+                if (val === 'back') {
+                    currentAmount = currentAmount.slice(0, -1);
+                    if (currentAmount === "") currentAmount = "0";
+                } else if (val === '.') {
+                    if (!currentAmount.includes('.')) {
+                        currentAmount += '.';
+                    }
+                } else {
+                    if (currentAmount === "0") {
+                        currentAmount = val;
+                    } else {
+                        // Prevent too many decimals
+                        const decimalPart = currentAmount.split('.')[1];
+                        if (decimalPart && decimalPart.length >= 2) return;
+                        currentAmount += val;
+                    }
+                }
+                
+                // Format with commas for large numbers if no decimal
+                if (!currentAmount.includes('.')) {
+                    const formatted = parseInt(currentAmount).toLocaleString();
+                    display.innerText = formatted;
+                } else {
+                    display.innerText = currentAmount;
+                }
+            });
+        });
+
+        // Category Selection logic
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Clear previous selection
+                document.querySelectorAll('.category-btn').forEach(b => {
+                    b.classList.remove('border-primary', 'bg-primary-container/10');
+                    b.classList.add('border-transparent', 'bg-surface-container-lowest');
+                    const iconBox = b.querySelector('div');
+                    iconBox.classList.remove('bg-primary', 'text-on-primary');
+                    iconBox.classList.add('bg-surface-container-high', 'text-on-surface');
+                    const label = b.querySelector('span:last-child');
+                    label.classList.remove('text-primary');
+                    label.classList.add('text-on-surface-variant');
+                });
+
+                // Set new selection
+                btn.classList.add('border-primary', 'bg-primary-container/10');
+                btn.classList.remove('border-transparent', 'bg-surface-container-lowest');
+                const iconBox = btn.querySelector('div');
+                iconBox.classList.add('bg-primary', 'text-on-primary');
+                iconBox.classList.remove('bg-surface-container-high', 'text-on-surface');
+                const label = btn.querySelector('span:last-child');
+                label.classList.add('text-primary');
+                label.classList.remove('text-on-surface-variant');
+            });
+        });
+
+        // Micro-interaction for feedback
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('button')) {
+                const btn = e.target.closest('button');
+                btn.classList.add('active:scale-95');
+                setTimeout(() => btn.classList.remove('active:scale-95'), 150);
+            }
+        });
+    </script>
+
+
+</body></html>
