@@ -224,7 +224,7 @@ export default function AnalyticsPage() {
                         }}
                       >
                         <div className="tx-icon" style={{ background: cat.color + '22', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <CategoryIcon icon={cat.icon} name={cat.name} size={18} color={cat.color} />
+                          <CategoryIcon icon={cat.icon} name={cat.name} size={18} color="var(--text-primary)" />
                         </div>
                         <div className="tx-info">
                           <div className="tx-category" style={{ fontSize: '0.95rem' }}>{cat.name}</div>

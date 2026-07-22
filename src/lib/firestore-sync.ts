@@ -81,13 +81,22 @@ export async function uploadAllData(userId: string) {
   }
 }
 
+export async function deleteAllCloudData(userId: string) {
+  const collections = ['transactions', 'budgets', 'monthly_budget', 'categories', 'documents'];
+  for (const col of collections) {
+    const snap = await getDocs(collection(firestore, `${userPath(userId)}/${col}`));
+    const chunks: typeof snap.docs[] = [];
+    for (let i = 0; i < snap.docs.length; i += 450) chunks.push(snap.docs.slice(i, i + 450));
+    for (const chunk of chunks) {
+      const batch = writeBatch(firestore);
+      chunk.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+}
+
 export async function pullFromCloud(userId: string) {
   const database = await getDb();
-
-  database.run('DELETE FROM transactions');
-  database.run('DELETE FROM budgets');
-  database.run('DELETE FROM monthly_budget');
-  database.run('DELETE FROM categories');
 
   const catsSnap = await getDocs(collection(firestore, `${userPath(userId)}/categories`));
   for (const d of catsSnap.docs) {

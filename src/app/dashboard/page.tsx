@@ -25,7 +25,7 @@ export default function DashboardPage() {
     async function load() {
       const [spentData, txs] = await Promise.all([
         getSpendingByCategory(monthStr),
-        getTransactions(5)
+        getTransactions(5, monthStr)
       ]);
       setData(spentData);
       setTransactions(txs);
@@ -248,7 +248,7 @@ export default function DashboardPage() {
                   className="tx-icon"
                   style={{ background: '#f1f5f9', width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' }}
                 >
-                  <CategoryIcon icon={tx.category_icon} name={tx.category_name} size={20} color="var(--text-secondary)" />
+                  <CategoryIcon icon={tx.category_icon} name={tx.category_name} size={20} color="var(--text-primary)" />
                 </div>
                 <div className="tx-info">
                   <div className="tx-category" style={{ fontSize: '0.95rem' }}>{tx.category_name}</div>

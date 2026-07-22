@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getSpendingByCategory, upsertBudget, CategorySpending, getMonthlyBudget, upsertMonthlyBudget } from '@/lib/db';
+import { useAuth } from '@/context/AuthContext';
+import { isSyncEnabled, uploadAllData } from '@/lib/firestore-sync';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useAppMode } from '@/context/AppModeContext';
 import MonthPicker from '@/components/MonthPicker';
@@ -24,6 +26,7 @@ export default function BudgetPage() {
   const [editAmounts, setEditAmounts] = useState<Record<number, string>>({});
   const { currency, fmt } = useCurrency();
   const { mode } = useAppMode();
+  const { user } = useAuth();
 
   const d = new Date();
   const currentMonthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -53,6 +56,7 @@ export default function BudgetPage() {
     const amount = isNaN(val) ? 0 : val;
     setLumpSumStr(amount > 0 ? amount.toString() : '');
     await upsertMonthlyBudget(month, amount);
+    if (user && isSyncEnabled()) uploadAllData(user.uid).catch(() => {});
     setIsEditingLumpSum(false);
   }
 
@@ -74,6 +78,7 @@ export default function BudgetPage() {
     if (lumpSumVal > 0 && val > unallocated) return;
 
     await upsertBudget(allocCatId as number, month, newAmount);
+    if (user && isSyncEnabled()) uploadAllData(user.uid).catch(() => {});
     setShowAllocateModal(false);
     await loadData();
   }
@@ -98,6 +103,7 @@ export default function BudgetPage() {
       const amt = parseFloat(amtStr) || 0;
       await upsertBudget(id, month, amt);
     }
+    if (user && isSyncEnabled()) uploadAllData(user.uid).catch(() => {});
     setShowEditModal(false);
     await loadData();
   }
@@ -442,7 +448,7 @@ export default function BudgetPage() {
                             flexShrink: 0,
                           }}
                         >
-                          <CategoryIcon icon={cat.icon} name={cat.name} size={16} color={cat.color} />
+                          <CategoryIcon icon={cat.icon} name={cat.name} size={16} color="var(--text-primary)" />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{cat.name}</div>

@@ -104,7 +104,7 @@ export default function HistoryPage() {
                 transition: 'all 0.2s ease',
               }}
             >
-              <CategoryIcon icon={c.icon} name={c.name} size={14} color={isSelected ? c.color : 'var(--text-secondary)'} />
+              <CategoryIcon icon={c.icon} name={c.name} size={14} color={isSelected ? '#ffffff' : 'var(--text-secondary)'} />
               <span>{c.name}</span>
             </button>
           );
@@ -140,7 +140,7 @@ export default function HistoryPage() {
 
       {/* Transaction List */}
       <div style={{ paddingBottom: '20px' }}>
-        <TransactionList transactions={filteredTxs} onDelete={handleDelete} />
+        <TransactionList transactions={filteredTxs} onDelete={handleDelete} onUpdate={loadData} />
       </div>
       
       {/* Hide scrollbar styles for horizontal scrolling */}

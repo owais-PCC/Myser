@@ -21,6 +21,8 @@ import { useAppMode } from '@/context/AppModeContext';
 import PageHeader from '@/components/PageHeader';
 import CategoryIcon from '@/components/CategoryIcon';
 import { Calendar, ChevronDown, PencilLine, Bell, Settings, Delete, X } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { isSyncEnabled, uploadAllData } from '@/lib/firestore-sync';
 
 interface Category {
   id: number;
@@ -37,7 +39,7 @@ export default function LogPage() {
   const [note, setNote] = useState('');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [saving, setSaving] = useState(false);
-  
+  const { user } = useAuth();
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   const handleDateClick = () => {
@@ -87,8 +89,18 @@ export default function LogPage() {
   const { mode } = useAppMode();
 
   const ICON_OPTIONS = [
-    '🛒', '🏠', '🧪', '🧩', '⛺', '🎵', '🎟️', '💼',
-    '🏋️', '📺', '👶', '🐷', '💸', '🧾', '☕', '🚗'
+    // Food & Drink
+    '🍔', '☕', '🍕', '🛒', '🧺', '🍽️', '🎂', '💧',
+    // Transport
+    '🚗', '⛽', '✈️', '🚌', '🚲', '🔥', '🌿', '🔧',
+    // Lifestyle & Wellness
+    '👗', '💇', '💆', '🛁', '🧘', '🏋️', '🐾', '💐',
+    // Tech & Entertainment
+    '📱', '🖥️', '🎓', '📚', '🎬', '🎮', '📺', '🎵',
+    // Finance & Other
+    '💼', '💸', '🐷', '🧾', '🎁', '🎟️', '👶', '🎨',
+    // Misc
+    '🤝', '📦', '❤️', '💊', '🎯', '🚀', '🌐', '🎟️',
   ];
   const COLOR_OPTIONS = ['#047857', '#4ECDC4', '#A29BFE', '#FD79A8', '#55EFC4', '#FDCB6E', '#81ECEC', '#74B9FF', '#FAB1A0', '#E17055', '#00B894', '#6C5CE7'];
 
@@ -187,6 +199,7 @@ export default function LogPage() {
         date,
         note: note.trim() || undefined,
       });
+      if (user && isSyncEnabled()) uploadAllData(user.uid).catch(() => {});
       setAmount('');
       setNote('');
       showToast('Expense saved!', 'success');
@@ -490,7 +503,7 @@ export default function LogPage() {
               {transactions.length} entries
             </span>
           </div>
-          <TransactionList transactions={transactions} onDelete={handleDelete} />
+          <TransactionList transactions={transactions} onDelete={handleDelete} onUpdate={loadData} />
         </div>
       </div>
 
@@ -521,19 +534,32 @@ export default function LogPage() {
 
               <div>
                 <label className="input-label" style={{ marginBottom: '8px', display: 'block' }}>Icon</label>
-                <div className="icon-picker-grid">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
                   {ICON_OPTIONS.map((icon) => {
                     const isSelected = newCatIcon === icon;
                     return (
                       <button
                         key={icon}
-                        className={`icon-option${isSelected ? ' selected' : ''}`}
                         onClick={() => setNewCatIcon(icon)}
+                        style={{
+                          width: '100%',
+                          aspectRatio: '1',
+                          borderRadius: '50%',
+                          background: isSelected ? 'var(--accent)' : 'transparent',
+                          border: isSelected ? 'none' : '1px solid var(--border)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.1s ease',
+                          padding: 0,
+                          minWidth: 0,
+                        }}
                       >
                         <CategoryIcon
                           icon={icon}
-                          size={20}
-                          color={isSelected ? '#ffffff' : 'rgba(15, 23, 42, 0.4)'}
+                          size={16}
+                          color={isSelected ? '#ffffff' : 'var(--text-primary)'}
                         />
                       </button>
                     );
@@ -554,10 +580,10 @@ export default function LogPage() {
               >
                 <div
                   style={{
-                    background: '#0f172a',
+                    background: 'var(--accent)',
                     width: '40px',
                     height: '40px',
-                    borderRadius: '10px',
+                    borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -637,7 +663,7 @@ export default function LogPage() {
                         className="tx-icon"
                         style={{ background: cat.color + '22', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
                       >
-                        <CategoryIcon icon={cat.icon} name={cat.name} size={18} color={cat.color} />
+                        <CategoryIcon icon={cat.icon} name={cat.name} size={18} color="var(--text-primary)" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{cat.name}</div>

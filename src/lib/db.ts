@@ -14,6 +14,19 @@ export function resetDb() {
   db = null;
 }
 
+export async function wipeLocalData() {
+  const database = await getDb();
+  database.run('DELETE FROM transactions');
+  database.run('DELETE FROM budgets');
+  database.run('DELETE FROM monthly_budget');
+  database.run('DELETE FROM documents');
+  database.run('DELETE FROM pending_logs');
+  database.run('DELETE FROM merchant_memory');
+  database.run('DELETE FROM categories');
+  seedCategories(database);
+  persistDb(database);
+}
+
 export const DEFAULT_CATEGORIES = [
   { id: 1, name: 'Food', color: '#FF6B6B', icon: '🍔' },
   { id: 2, name: 'Fuel', color: '#4ECDC4', icon: '⛽' },
@@ -269,13 +282,15 @@ export async function addTransaction(data: {
   }
 }
 
-export async function getTransactions(limit = 50) {
+export async function getTransactions(limit = 50, month?: string) {
   const database = await getDb();
+  const monthFilter = month ? `AND t.date LIKE '${month}%'` : '';
   const results = database.exec(`
     SELECT t.id, t.category_id, t.amount, t.date, t.note, t.created_at, t.document_id, t.comment,
            c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM transactions t
     JOIN categories c ON t.category_id = c.id
+    WHERE 1=1 ${monthFilter}
     ORDER BY t.date DESC, t.created_at DESC
     LIMIT ${limit}
   `);
@@ -310,6 +325,39 @@ export async function deleteTransaction(id: number) {
   const uid = getUserId();
   if (uid) syncDeleteTransaction(uid, id);
 }
+
+export async function updateTransaction(id: number, data: {
+  category_id: number;
+  amount: number;
+  date: string;
+  note?: string;
+  comment?: string | null;
+}) {
+  const database = await getDb();
+  database.run(
+    'UPDATE transactions SET category_id = ?, amount = ?, date = ?, note = ?, comment = ? WHERE id = ?',
+    [data.category_id, data.amount, data.date, data.note || null, data.comment || null, id]
+  );
+  persistDb(database);
+  const uid = getUserId();
+  if (uid) {
+    const txRes = database.exec(`SELECT created_at, document_id FROM transactions WHERE id = ${id}`);
+    if (txRes.length && txRes[0].values.length) {
+      const created_at = txRes[0].values[0][0] as string;
+      const document_id = txRes[0].values[0][1] as number | null;
+      syncTransaction(uid, id, {
+        category_id: data.category_id,
+        amount: data.amount,
+        date: data.date,
+        note: data.note || null,
+        created_at,
+        document_id,
+        comment: data.comment || null
+      });
+    }
+  }
+}
+
 
 // ---- BUDGETS ----
 export async function getBudgetsForMonth(month: string) {

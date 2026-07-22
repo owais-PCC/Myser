@@ -10,11 +10,12 @@ import {
   reorderCategories,
   addCategory,
   getBudgetsForMonth,
+  wipeLocalData,
 } from '@/lib/db';
 import PageHeader from '@/components/PageHeader';
 import { useAuth } from '@/context/AuthContext';
 import { useSync } from '@/context/SyncContext';
-import { uploadAllData } from '@/lib/firestore-sync';
+import { uploadAllData, deleteAllCloudData } from '@/lib/firestore-sync';
 import CategoryIcon from '@/components/CategoryIcon';
 import { Toast, useToast } from '@/components/Toast';
 import {
@@ -92,6 +93,9 @@ export default function SettingsPage() {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearStep, setClearStep] = useState<1 | 2>(1);
+  const [clearing, setClearing] = useState(false);
 
   // Navigation state for sub-panels
   const [activeSubPanel, setActiveSubPanel] = useState<'currency' | 'categories' | 'appMode' | null>(null);
@@ -207,8 +211,18 @@ export default function SettingsPage() {
   }
 
   const ICON_OPTIONS = [
-    '🛒', '🏠', '🧪', '🧩', '⛺', '🎵', '🎟️', '💼',
-    '🏋️', '📺', '👶', '🐷', '💸', '🧾', '☕', '🚗'
+    // Food & Drink
+    '🍔', '☕', '🍕', '🛒', '🧺', '🍽️', '🎂', '💧',
+    // Transport
+    '🚗', '⛽', '✈️', '🚌', '🚲', '🔥', '🌿', '🔧',
+    // Lifestyle & Wellness
+    '👗', '💇', '💆', '🛁', '🧘', '🏋️', '🐾', '💐',
+    // Tech & Entertainment
+    '📱', '🖥️', '🎓', '📚', '🎬', '🎮', '📺', '🎵',
+    // Finance & Other
+    '💼', '💸', '🐷', '🧾', '🎁', '🎟️', '👶', '🎨',
+    // Misc
+    '🤝', '📦', '❤️', '💊', '🎯', '🚀', '🎟️', '🌐',
   ];
 
   // Composite AppMode gear-sparkles icon
@@ -800,17 +814,16 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="input-label" style={{ marginBottom: '8px', display: 'block' }}>Icon</label>
-                  <div className="icon-picker-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
                     {ICON_OPTIONS.map((icon) => {
                       const isSelected = newCatIcon === icon;
                       return (
                         <button
                           key={icon}
-                          className={`icon-option${isSelected ? ' selected' : ''}`}
                           onClick={() => setNewCatIcon(icon)}
                           style={{
-                            width: '38px',
-                            height: '38px',
+                            width: '100%',
+                            aspectRatio: '1',
                             borderRadius: '50%',
                             background: isSelected ? 'var(--accent)' : 'transparent',
                             border: isSelected ? 'none' : '1px solid var(--border)',
@@ -818,14 +831,15 @@ export default function SettingsPage() {
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
-                            color: isSelected ? 'white' : 'var(--text-secondary)',
                             transition: 'all 0.1s ease',
+                            padding: 0,
+                            minWidth: 0,
                           }}
                         >
                           <CategoryIcon
                             icon={icon}
-                            size={18}
-                            color={isSelected ? '#ffffff' : 'rgba(15, 23, 42, 0.4)'}
+                            size={16}
+                            color={isSelected ? '#ffffff' : 'var(--text-primary)'}
                           />
                         </button>
                       );
@@ -1108,6 +1122,109 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {/* Clear History Button */}
+      <button
+        onClick={() => { setClearStep(1); setShowClearModal(true); }}
+        style={{
+          width: '100%',
+          background: 'rgba(239, 68, 68, 0.04)',
+          border: '1px solid rgba(239, 68, 68, 0.15)',
+          borderRadius: '16px',
+          padding: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          color: '#dc2626',
+          fontWeight: 700,
+          fontSize: '0.95rem',
+          cursor: 'pointer',
+          marginBottom: '12px',
+        }}
+      >
+        <Trash2 size={16} />
+        <span>Clear History</span>
+      </button>
+
+      {/* Clear History Modal */}
+      {showClearModal && (
+        <div className="modal-overlay" onClick={() => !clearing && (setShowClearModal(false), setClearStep(1))}>
+          <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">Clear History</span>
+              <button className="modal-close" onClick={() => !clearing && (setShowClearModal(false), setClearStep(1))}>✕</button>
+            </div>
+
+            {clearStep === 1 ? (
+              <>
+                <div style={{ background: 'rgba(220, 38, 38, 0.08)', border: '1px solid rgba(220, 38, 38, 0.2)', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--danger)', marginBottom: '8px' }}>This will permanently delete:</div>
+                  <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.8 }}>
+                    <li>All transactions</li>
+                    <li>All budgets</li>
+                    <li>All receipts and documents</li>
+                    <li>All cloud data in Firestore</li>
+                  </ul>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '24px', lineHeight: 1.5 }}>
+                  Your account stays active. Default categories will be restored. This cannot be undone.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <button
+                    onClick={() => setClearStep(2)}
+                    style={{ width: '100%', background: 'var(--danger)', color: 'white', border: 'none', borderRadius: '14px', padding: '14px', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    I understand, continue
+                  </button>
+                  <button
+                    onClick={() => { setShowClearModal(false); setClearStep(1); }}
+                    style={{ width: '100%', background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ background: 'rgba(220, 38, 38, 0.08)', border: '1px solid rgba(220, 38, 38, 0.2)', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--danger)', marginBottom: '6px' }}>Are you absolutely sure?</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.5 }}>
+                    Every transaction, budget, and receipt will be wiped from this device and the cloud. There is no way to recover this data.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <button
+                    disabled={clearing}
+                    onClick={async () => {
+                      if (!user) return;
+                      setClearing(true);
+                      try {
+                        await deleteAllCloudData(user.uid);
+                        await wipeLocalData();
+                      } finally {
+                        setClearing(false);
+                        setShowClearModal(false);
+                        setClearStep(1);
+                      }
+                    }}
+                    style={{ width: '100%', background: clearing ? 'var(--text-muted)' : 'var(--danger)', color: 'white', border: 'none', borderRadius: '14px', padding: '14px', fontSize: '0.95rem', fontWeight: 700, cursor: clearing ? 'not-allowed' : 'pointer' }}
+                  >
+                    {clearing ? 'Wiping data...' : 'Yes, delete everything'}
+                  </button>
+                  <button
+                    onClick={() => { setShowClearModal(false); setClearStep(1); }}
+                    disabled={clearing}
+                    style={{ width: '100%', background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Sign Out Button */}
       <button
