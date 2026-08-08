@@ -90,17 +90,17 @@ export default function LogPage() {
 
   const ICON_OPTIONS = [
     // Food & Drink
-    '🍔', '☕', '🍕', '🛒', '🧺', '🍽️', '🎂', '💧',
+    '🍔', '☕', '🍕', '🛒', '🧺', '🎂', '💧', '🍿',
     // Transport
-    '🚗', '⛽', '✈️', '🚌', '🚲', '🔥', '🌿', '🔧',
+    '🚗', '⛽', '✈️', '🚌', '🚲', '🚘', '🏍️', '🔥', '🌿', '🔧',
     // Lifestyle & Wellness
     '👗', '💇', '💆', '🛁', '🧘', '🏋️', '🐾', '💐',
     // Tech & Entertainment
     '📱', '🖥️', '🎓', '📚', '🎬', '🎮', '📺', '🎵',
     // Finance & Other
-    '💼', '💸', '🐷', '🧾', '🎁', '🎟️', '👶', '🎨',
+    '💼', '💸', '🐷', '🧾', '🎁', '🎟️', '👶', '🚼', '🎨',
     // Misc
-    '🤝', '📦', '❤️', '💊', '🎯', '🚀', '🌐', '🎟️',
+    '🤝', '📦', '❤️', '💊', '🎯', '🚀', '🌐',
   ];
   const COLOR_OPTIONS = ['#047857', '#4ECDC4', '#A29BFE', '#FD79A8', '#55EFC4', '#FDCB6E', '#81ECEC', '#74B9FF', '#FAB1A0', '#E17055', '#00B894', '#6C5CE7'];
 
@@ -202,7 +202,9 @@ export default function LogPage() {
       if (user && isSyncEnabled()) uploadAllData(user.uid).catch(() => {});
       setAmount('');
       setNote('');
-      showToast('Expense saved!', 'success');
+      const catName = categories.find((c) => c.id === categoryId)?.name;
+      const detailText = `${catName ? catName + ' · ' : ''}${fmt(expenseAmount)}`;
+      showToast('Expense Saved', 'success', detailText);
       const [txs, unalloc] = await Promise.all([
         getTransactions(30),
         getUnallocatedBudget(monthStr),
@@ -279,7 +281,7 @@ export default function LogPage() {
   return (
     <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={hideToast} />
+        <Toast message={toast.message} type={toast.type} detail={toast.detail} onClose={hideToast} />
       )}
 
       {/* Fixed top section */}

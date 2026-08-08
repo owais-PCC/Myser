@@ -111,7 +111,7 @@ export default function DashboardPage() {
                 <div
                   key={cat.id}
                   className="card"
-                  onClick={() => router.push('/budget')}
+                  onClick={() => router.push(`/history?category=${cat.id}`)}
                   style={{ padding: '18px 16px', cursor: 'pointer', border: '1px solid var(--border)' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -197,9 +197,11 @@ export default function DashboardPage() {
                 <div
                   key={cat.id}
                   className="tx-item"
+                  onClick={() => router.push(`/history?category=${cat.id}`)}
                   style={{
                     padding: '16px 0',
                     borderBottom: i === arr.length - 1 ? 'none' : '1px solid var(--border)',
+                    cursor: 'pointer',
                   }}
                 >
                   <div className="tx-icon" style={{ background: '#f1f5f9', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' }}>
