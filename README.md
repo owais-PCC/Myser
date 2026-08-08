@@ -1,36 +1,21 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Myser — Personal Budget & Expense Tracker
 
-## Getting Started
+Myser is a cross-platform personal financial tracking application built with Next.js, React, SQLite (`sql.js`), Firebase, and Capacitor.
 
-First, run the development server:
+## 📚 Project Guides & Documentation
+
+- 🛠️ **[Production Readiness, Audit & Feature Roadmap](file:///c:/Users/Administrator/.gemini/antigravity-ide/scratch/PRODUCTION_READINESS_ROADMAP.md)**: Master blueprint for fixing sign-in reliability, redesigning "AI-looking" welcome/uploading UI, Firebase cloud receipt sync, in-app PDF report preview, income tracking, itemized OCR, and monetization tiering.
+- 📱 **[iOS Porting & App Store Submission Guide](file:///c:/Users/Administrator/.gemini/antigravity-ide/scratch/IOS_PORTING_GUIDE.md)**: Complete step-by-step guide to port Myser to Apple devices, configure GitHub Actions CI/CD for cloud builds, and submit to the Apple App Store.
+- 💻 **[Desktop Web Expansion & Responsive Plan](file:///c:/Users/Administrator/.gemini/antigravity-ide/scratch/DESKTOP_WEB_EXPANSION_PLAN.md)**: Architectural roadmap for expanding Myser into a multi-column, full-screen desktop web application with drag-and-drop receipt batching and command palettes.
+- 📄 **[Project Handoff Document](file:///c:/Users/Administrator/.gemini/antigravity-ide/scratch/HANDOFF.md)**: Database schema, secrets, architecture overview, and deployment commands.
+
+## 🚀 Getting Started
+
+Run the local development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3002](http://localhost:3002) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
