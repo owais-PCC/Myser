@@ -59,7 +59,12 @@ jobs:
 
       - name: Zip the .app for Appetize.io
         run: |
-          APP_PATH=$(find build/Build/Products -maxdepth 1 -name "*.app" -type d | head -n 1)
+          APP_PATH=$(find build/Build/Products -name "*.app" -type d | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::No .app bundle found under build/Build/Products"
+            find build/Build/Products
+            exit 1
+          fi
           echo "Found app at $APP_PATH"
           cd "$(dirname "$APP_PATH")"
           zip -r -X "$GITHUB_WORKSPACE/Myser-simulator.zip" "$(basename "$APP_PATH")"
