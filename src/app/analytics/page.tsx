@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ComposedChart, Line,
 } from 'recharts';
 import {
   getSpendingByCategory,
@@ -16,10 +16,35 @@ import { useAppMode } from '@/context/AppModeContext';
 import MonthPicker from '@/components/MonthPicker';
 import PageHeader from '@/components/PageHeader';
 import CategoryIcon from '@/components/CategoryIcon';
+import { useAuth } from '@/context/AuthContext';
+import { Toast, useToast } from '@/components/Toast';
+import { generateMonthEndReport } from '@/lib/report-generator';
+import { FileDown } from 'lucide-react';
 
 export default function AnalyticsPage() {
-  const { fmt } = useCurrency();
+  const { currency, fmt } = useCurrency();
   const { mode } = useAppMode();
+  const { user } = useAuth();
+  const { toast, show: showToast, hide: hideToast } = useToast();
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  async function handleExportReport() {
+    const hasTransactions = catData.some((c) => c.spent > 0);
+    if (!hasTransactions) {
+      showToast('No transactions in this month', 'error');
+      return;
+    }
+    setIsGeneratingReport(true);
+    try {
+      const filename = await generateMonthEndReport(month, user, currency, mode);
+      showToast('Report downloaded', 'success', filename);
+    } catch (e) {
+      showToast('Failed to generate report', 'error');
+      console.error(e);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }
 
   const [month, setMonth] = useState(() => {
     const d = new Date();
@@ -94,6 +119,32 @@ export default function AnalyticsPage() {
   const diff = totalSpent - lastMonthTotal;
   const spentCategories = catData.filter((c) => c.spent > 0).sort((a, b) => b.spent - a.spent);
 
+  const currentMonthStr = new Date().toISOString().slice(0, 7);
+  const [yearNum, monthNum] = month.split('-').map(Number);
+  const totalDaysInMonth = new Date(yearNum, monthNum, 0).getDate();
+
+  let daysElapsed = totalDaysInMonth;
+  if (month === currentMonthStr) {
+    daysElapsed = Math.max(1, Math.min(new Date().getDate(), totalDaysInMonth));
+  } else if (month > currentMonthStr) {
+    daysElapsed = 1;
+  }
+
+  const avgDaily = totalSpent > 0 ? totalSpent / daysElapsed : 0;
+  const avgWeekly = avgDaily * 7;
+
+  const dailyDataWithRolling = dailyData.map((d, index) => {
+    const windowStart = Math.max(0, index - 6);
+    const windowSlice = dailyData.slice(windowStart, index + 1);
+    const sum = windowSlice.reduce((acc, curr) => acc + curr.total, 0);
+    const count = windowSlice.length;
+    const rollingAvg = Math.round((sum / count) * 100) / 100;
+    return {
+      ...d,
+      rollingAvg,
+    };
+  });
+
   const pieData = spentCategories.map((c) => ({
     name: c.name,
     value: c.spent,
@@ -115,13 +166,53 @@ export default function AnalyticsPage() {
     itemStyle: { color: 'var(--text-primary)' },
   };
 
+  const hasTransactions = catData.some((c) => c.spent > 0);
+
   return (
     <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px' }}>
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={hideToast} />
+      )}
       <PageHeader title="Analytics" />
 
-      {/* Month Selector */}
-      <div style={{ marginBottom: '20px' }}>
-        <MonthPicker value={month} onChange={setMonth} />
+      {/* Month Selector & Report Export */}
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ flex: 1 }}>
+          <MonthPicker value={month} onChange={setMonth} />
+        </div>
+        <button
+          onClick={handleExportReport}
+          disabled={isGeneratingReport || !hasTransactions}
+          title="Download PDF Report"
+          style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            background: 'var(--bg-secondary)',
+            color: !hasTransactions ? 'var(--text-muted)' : 'var(--accent)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: !hasTransactions || isGeneratingReport ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s ease',
+            flexShrink: 0,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+            opacity: !hasTransactions ? 0.5 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (hasTransactions && !isGeneratingReport) {
+              e.currentTarget.style.borderColor = 'var(--accent)';
+              e.currentTarget.style.background = 'var(--accent-light)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)';
+            e.currentTarget.style.background = 'var(--bg-secondary)';
+          }}
+        >
+          <FileDown size={20} />
+        </button>
       </div>
 
       {loading ? (
@@ -165,6 +256,33 @@ export default function AnalyticsPage() {
             )}
           </div>
 
+          {/* Average Pace Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+            <div className="card" style={{ padding: '16px 14px' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '4px' }}>
+                Daily Average
+              </div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
+                {fmt(avgDaily)}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 500 }}>
+                per day
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '16px 14px' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '4px' }}>
+                Weekly Average
+              </div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.5px' }}>
+                {fmt(avgWeekly)}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 500 }}>
+                per week
+              </div>
+            </div>
+          </div>
+
           {/* Category Breakdown */}
           <div className="card" style={{ padding: '20px 16px', marginBottom: '16px' }}>
             <h2 className="section-title" style={{ marginBottom: '16px' }}>Spending by Category</h2>
@@ -175,9 +293,9 @@ export default function AnalyticsPage() {
               </div>
             ) : (
               <>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
                   <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
+                    <PieChart accessibilityLayer={false}>
                       <Pie
                         data={pieData}
                         cx="50%"
@@ -194,63 +312,74 @@ export default function AnalyticsPage() {
                             key={entry.id}
                             fill={entry.color}
                             opacity={activeSlice === null || activeSlice === index ? 1 : 0.3}
-                            stroke={activeSlice === index ? 'var(--text-primary)' : 'none'}
-                            strokeWidth={activeSlice === index ? 2 : 0}
+                            stroke="none"
+                            strokeWidth={0}
+                            style={{ outline: 'none' }}
                           />
                         ))}
                       </Pie>
-                      <Tooltip
-                        formatter={(value) => fmt(Number(value))}
-                        {...tooltipStyle}
-                      />
                     </PieChart>
                   </ResponsiveContainer>
-                </div>
 
-                {/* Category list */}
-                <div>
-                  {spentCategories.map((cat, i) => {
-                    const pct = totalSpent > 0 ? ((cat.spent / totalSpent) * 100).toFixed(1) : '0';
-                    const isHighlighted = activeSlice !== null && pieData[activeSlice]?.id === cat.id;
-                    return (
-                      <div
-                        key={cat.id}
-                        className="tx-item"
-                        style={{
-                          padding: '14px 0',
-                          borderBottom: i === spentCategories.length - 1 ? 'none' : '1px solid var(--border)',
-                          opacity: activeSlice !== null && !isHighlighted ? 0.4 : 1,
-                          transition: 'opacity 0.2s ease',
-                        }}
-                      >
-                        <div className="tx-icon" style={{ background: cat.color + '22', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <CategoryIcon icon={cat.icon} name={cat.name} size={18} color="var(--text-primary)" />
+                  {/* Center Donut Label */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      textAlign: 'center',
+                      pointerEvents: 'none',
+                      background: 'rgba(255, 255, 255, 0.92)',
+                      backdropFilter: 'blur(6px)',
+                      padding: '8px 14px',
+                      borderRadius: '16px',
+                      boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+                      border: '1px solid var(--border)',
+                      minWidth: '95px',
+                    }}
+                  >
+                    {activeSlice !== null && pieData[activeSlice] ? (
+                      <>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                          {pieData[activeSlice].name}
                         </div>
-                        <div className="tx-info">
-                          <div className="tx-category" style={{ fontSize: '0.95rem' }}>{cat.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 500 }}>{pct}%</div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '1px' }}>
+                          {fmt(pieData[activeSlice].value)}
                         </div>
-                        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                          {fmt(cat.spent)}
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Total
                         </div>
-                      </div>
-                    );
-                  })}
+                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '1px' }}>
+                          {fmt(totalSpent)}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </>
             )}
           </div>
 
-          {/* Daily Spending */}
+          {/* Daily Spending & Rolling Trend */}
           <div className="card" style={{ padding: '20px 16px', marginBottom: '16px' }}>
-            <h2 className="section-title" style={{ marginBottom: '16px' }}>Daily Spending</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 className="section-title" style={{ margin: 0 }}>Daily Spending & Trend</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', fontWeight: 600, color: '#6C5CE7' }}>
+                <span style={{ display: 'inline-block', width: '12px', height: '3px', background: '#6C5CE7', borderRadius: '2px' }} />
+                <span>7-Day Trend</span>
+              </div>
+            </div>
             {dailyData.every((d) => d.total === 0) ? (
               <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px 0', fontSize: '0.9rem' }}>
                 No spending this month.
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={dailyData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={210}>
+                <ComposedChart data={dailyDataWithRolling} margin={{ top: 8, right: 4, left: -20, bottom: 0 }} accessibilityLayer={false}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis
                     dataKey="day"
@@ -266,12 +395,24 @@ export default function AnalyticsPage() {
                     tickFormatter={(v) => fmt(v)}
                   />
                   <Tooltip
-                    formatter={(value) => [fmt(Number(value)), 'Spent']}
+                    formatter={(value, name) => [
+                      fmt(Number(value)),
+                      name === 'rollingAvg' ? '7-Day Trend' : 'Spent',
+                    ]}
                     labelFormatter={(label) => `Day ${label}`}
+                    cursor={{ fill: 'rgba(0,0,0,0.03)' }}
                     {...tooltipStyle}
                   />
-                  <Bar dataKey="total" fill="var(--accent)" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Bar dataKey="total" fill="var(--accent)" radius={[4, 4, 0, 0]} opacity={0.7} name="Daily Spent" />
+                  <Line
+                    type="monotone"
+                    dataKey="rollingAvg"
+                    stroke="#6C5CE7"
+                    strokeWidth={2.5}
+                    dot={false}
+                    name="7-Day Trend"
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </div>
@@ -285,7 +426,7 @@ export default function AnalyticsPage() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={monthlyTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <BarChart data={monthlyTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} accessibilityLayer={false}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis
                     dataKey="label"
@@ -301,6 +442,7 @@ export default function AnalyticsPage() {
                   />
                   <Tooltip
                     formatter={(value) => [fmt(Number(value)), 'Total']}
+                    cursor={{ fill: 'rgba(0,0,0,0.03)' }}
                     {...tooltipStyle}
                   />
                   <Bar dataKey="total" fill="#6C5CE7" radius={[4, 4, 0, 0]} />

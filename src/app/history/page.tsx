@@ -7,6 +7,11 @@ import { useCurrency } from '@/context/CurrencyContext';
 import MonthPicker from '@/components/MonthPicker';
 import PageHeader from '@/components/PageHeader';
 import CategoryIcon from '@/components/CategoryIcon';
+import { useAuth } from '@/context/AuthContext';
+import { useAppMode } from '@/context/AppModeContext';
+import { Toast, useToast } from '@/components/Toast';
+import { generateMonthEndReport } from '@/lib/report-generator';
+import { FileDown } from 'lucide-react';
 
 interface Category {
   id: number;
@@ -23,7 +28,28 @@ export default function HistoryPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCat, setSelectedCat] = useState<number | 'All'>('All');
-  const { fmt } = useCurrency();
+  const { currency, fmt } = useCurrency();
+  const { user } = useAuth();
+  const { mode } = useAppMode();
+  const { toast, show: showToast, hide: hideToast } = useToast();
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  async function handleExportReport() {
+    if (transactions.length === 0) {
+      showToast('No transactions in this month', 'error');
+      return;
+    }
+    setIsGeneratingReport(true);
+    try {
+      const filename = await generateMonthEndReport(month, user, currency, mode);
+      showToast('Report downloaded', 'success', filename);
+    } catch (e) {
+      showToast('Failed to generate report', 'error');
+      console.error(e);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }
 
   const loadData = useCallback(async () => {
     const [txs, cats] = await Promise.all([
@@ -37,6 +63,19 @@ export default function HistoryPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const catParam = params.get('category');
+      if (catParam) {
+        const catId = Number(catParam);
+        if (!isNaN(catId)) {
+          setSelectedCat(catId);
+        }
+      }
+    }
+  }, []);
 
   async function handleDelete(id: number) {
     await deleteTransaction(id);
@@ -52,12 +91,50 @@ export default function HistoryPage() {
 
   return (
     <div className="page-content" style={{ paddingTop: '28px' }}>
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={hideToast} />
+      )}
       <div style={{ padding: '0 16px' }}>
         <PageHeader title="History" />
 
-        {/* Month Selector */}
-        <div style={{ marginBottom: '16px' }}>
-          <MonthPicker value={month} onChange={setMonth} />
+        {/* Month Selector & Report Export */}
+        <div style={{ marginBottom: '16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ flex: 1 }}>
+            <MonthPicker value={month} onChange={setMonth} />
+          </div>
+          <button
+            onClick={handleExportReport}
+            disabled={isGeneratingReport || transactions.length === 0}
+            title="Download PDF Report"
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-secondary)',
+              color: transactions.length === 0 ? 'var(--text-muted)' : 'var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: transactions.length === 0 || isGeneratingReport ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+              boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+              opacity: transactions.length === 0 ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (transactions.length > 0 && !isGeneratingReport) {
+                e.currentTarget.style.borderColor = 'var(--accent)';
+                e.currentTarget.style.background = 'var(--accent-light)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)';
+              e.currentTarget.style.background = 'var(--bg-secondary)';
+            }}
+          >
+            <FileDown size={20} />
+          </button>
         </div>
       </div>
 

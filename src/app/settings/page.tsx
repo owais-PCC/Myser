@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useAppMode, AppMode } from '@/context/AppModeContext';
-import { CURRENCIES } from '@/lib/currency';
+import { CURRENCIES, formatCurrency } from '@/lib/currency';
 import {
   getCategories,
   deleteCategory,
@@ -11,13 +11,18 @@ import {
   addCategory,
   getBudgetsForMonth,
   wipeLocalData,
+  getTransactionsByMonth,
+  getSpendingByCategory,
+  getMonthlyBudget,
 } from '@/lib/db';
 import PageHeader from '@/components/PageHeader';
+import MonthPicker from '@/components/MonthPicker';
 import { useAuth } from '@/context/AuthContext';
 import { useSync } from '@/context/SyncContext';
 import { uploadAllData, deleteAllCloudData } from '@/lib/firestore-sync';
 import CategoryIcon from '@/components/CategoryIcon';
 import { Toast, useToast } from '@/components/Toast';
+import { generateMonthEndReport, generateMonthEndReportDoc, generateAiPrompt } from '@/lib/report-generator';
 import {
   Banknote,
   Shapes,
@@ -36,6 +41,11 @@ import {
   Plus,
   PiggyBank,
   BarChart3,
+  FileText,
+  Copy,
+  FileDown,
+  Eye,
+  Share2,
 } from 'lucide-react';
 
 interface Category {
@@ -98,7 +108,215 @@ export default function SettingsPage() {
   const [clearing, setClearing] = useState(false);
 
   // Navigation state for sub-panels
-  const [activeSubPanel, setActiveSubPanel] = useState<'currency' | 'categories' | 'appMode' | null>(null);
+  const [activeSubPanel, setActiveSubPanel] = useState<'currency' | 'categories' | 'appMode' | 'report' | null>(null);
+
+  // Report sub-panel state
+  const [reportMonth, setReportMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [reportTxCount, setReportTxCount] = useState(0);
+  const [reportTotalSpent, setReportTotalSpent] = useState(0);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [loadingReportStats, setLoadingReportStats] = useState(false);
+
+  // PDF Preview states
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string>('');
+  const [pdfBase64, setPdfBase64] = useState<string>('');
+  const [previewTransactions, setPreviewTransactions] = useState<any[]>([]);
+
+  const loadReportStats = useCallback(async (selectedMonth: string) => {
+    setLoadingReportStats(true);
+    try {
+      const [txs, catSpending] = await Promise.all([
+        getTransactionsByMonth(selectedMonth),
+        getSpendingByCategory(selectedMonth),
+      ]);
+      setReportTxCount(txs.length);
+      setReportTotalSpent(catSpending.reduce((s, c) => s + c.spent, 0));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingReportStats(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeSubPanel === 'report') {
+      loadReportStats(reportMonth);
+    }
+  }, [activeSubPanel, reportMonth, loadReportStats]);
+
+  async function handleGenerateReport() {
+    setIsGeneratingReport(true);
+    try {
+      const filename = await generateMonthEndReport(reportMonth, user, currency, mode);
+      showToast('Report downloaded', 'success', filename);
+    } catch (error) {
+      showToast('Failed to generate report', 'error');
+      console.error(error);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }
+
+  const formattedReportMonth = new Date(`${reportMonth}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  async function handleOpenPreview() {
+    setPreviewLoading(true);
+    setShowPreviewModal(true);
+    try {
+      // 1. Fetch transactions to preview inside the mockup
+      const txs = await getTransactionsByMonth(reportMonth);
+      setPreviewTransactions(txs.slice(0, 3));
+
+      // 2. Compile the PDF doc
+      const doc = await generateMonthEndReportDoc(reportMonth, user, currency, mode);
+      const blob = doc.output('blob');
+      const dataUri = doc.output('datauristring');
+      const base64 = dataUri.split(',')[1];
+
+      setPdfBlob(blob);
+      setPdfBase64(base64);
+
+      // 3. Set standard web URL if on browser
+      const { Capacitor } = await import('@capacitor/core');
+      if (!Capacitor.isNativePlatform()) {
+        const url = URL.createObjectURL(blob);
+        setPdfUrl(url);
+      }
+    } catch (error) {
+      console.error('Failed to open preview:', error);
+      showToast('Failed to open preview', 'error');
+      setShowPreviewModal(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  async function handleShareReport() {
+    if (!pdfBase64 && !pdfBlob) return;
+    try {
+      const { Capacitor } = await import('@capacitor/core');
+      if (Capacitor.isNativePlatform()) {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+
+        const tempFilename = `myser-report-${reportMonth}.pdf`;
+        const writeResult = await Filesystem.writeFile({
+          path: tempFilename,
+          data: pdfBase64,
+          directory: Directory.Cache,
+        });
+
+        await Share.share({
+          title: 'Myser Month End Report',
+          text: `Financial statement for ${formattedReportMonth}`,
+          files: [writeResult.uri],
+        });
+      } else {
+        if (navigator.share && pdfBlob) {
+          const file = new File([pdfBlob], `myser-report-${reportMonth}.pdf`, { type: 'application/pdf' });
+          await navigator.share({
+            title: 'Myser Month End Report',
+            files: [file],
+          });
+        } else {
+          handleDownloadReport();
+          showToast('Sharing not supported, downloaded instead', 'success');
+        }
+      }
+    } catch (error) {
+      console.error('Share failed:', error);
+      showToast('Failed to share report', 'error');
+    }
+  }
+
+  async function handleDownloadReport() {
+    if (!pdfBase64 && !pdfBlob) return;
+    try {
+      const { Capacitor } = await import('@capacitor/core');
+      const filename = `myser-report-${reportMonth}.pdf`;
+      if (Capacitor.isNativePlatform()) {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        await Filesystem.writeFile({
+          path: `Download/Myser/${filename}`,
+          data: pdfBase64,
+          directory: Directory.ExternalStorage,
+          recursive: true,
+        });
+        showToast('Saved to Download/Myser/', 'success', filename);
+      } else {
+        const url = URL.createObjectURL(pdfBlob!);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        showToast('Report downloaded', 'success', filename);
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      showToast('Failed to download report', 'error');
+    }
+  }
+
+  function handleClosePreview() {
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+      setPdfUrl('');
+    }
+    setPdfBlob(null);
+    setPdfBase64('');
+    setPreviewTransactions([]);
+    setShowPreviewModal(false);
+  }
+
+  async function handleCopyAiPrompt() {
+    try {
+      const txs = await getTransactionsByMonth(reportMonth);
+      const catSpending = await getSpendingByCategory(reportMonth);
+      const budgetVal = await getMonthlyBudget(reportMonth);
+      
+      const [yearNum, monthNum] = reportMonth.split('-').map(Number);
+      const totalDays = new Date(yearNum, monthNum, 0).getDate();
+      const currentMonthStr = new Date().toISOString().slice(0, 7);
+      let daysElapsed = totalDays;
+      if (reportMonth === currentMonthStr) {
+        daysElapsed = Math.max(1, Math.min(new Date().getDate(), totalDays));
+      } else if (reportMonth > currentMonthStr) {
+        daysElapsed = 1;
+      }
+      const totalSpent = catSpending.reduce((s, c) => s + c.spent, 0);
+      const avgDaily = totalSpent > 0 ? totalSpent / daysElapsed : 0;
+      const monthName = new Date(`${reportMonth}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      
+      const promptText = generateAiPrompt(
+        monthName,
+        currency,
+        totalSpent,
+        avgDaily,
+        mode,
+        budgetVal,
+        catSpending,
+        txs
+      );
+      
+      await navigator.clipboard.writeText(promptText);
+      setCopiedPrompt(true);
+      showToast('Copied to clipboard!', 'success');
+      setTimeout(() => setCopiedPrompt(false), 2000);
+    } catch (err) {
+      showToast('Failed to copy prompt', 'error');
+      console.error(err);
+    }
+  }
 
   // HTML5 drag and drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -907,6 +1125,354 @@ export default function SettingsPage() {
     );
   }
 
+  // --- SUB-PANEL: Month End Report ---
+  if (activeSubPanel === 'report') {
+    const formattedReportMonth = new Date(`${reportMonth}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    return (
+      <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 24px)' }}>
+        {toast && (
+          <Toast message={toast.message} type={toast.type} onClose={hideToast} />
+        )}
+        
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+          <button
+            onClick={() => setActiveSubPanel(null)}
+            style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer', display: 'flex', color: 'var(--accent)' }}
+          >
+            <ArrowLeft size={24} style={{ strokeWidth: 2.2 }} />
+          </button>
+          <h1 className="page-title" style={{ margin: 0, fontSize: '1.75rem', color: 'var(--text-primary)', fontWeight: 800 }}>Month End Report</h1>
+        </div>
+
+        {/* Description */}
+        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500, marginBottom: '20px', paddingLeft: '4px', lineHeight: 1.45 }}>
+          Generate a detailed, official PDF financial statement for your tax records, expense audits, or budget reviews.
+        </div>
+
+        {/* Month Selector Card */}
+        <div className="card" style={{ padding: '20px', marginBottom: '16px' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>
+            Select Month
+          </div>
+          <MonthPicker value={reportMonth} onChange={setReportMonth} />
+        </div>
+
+        {/* Statistics Preview Card */}
+        <div className="card" style={{ padding: '20px', marginBottom: '16px' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '16px' }}>
+            Report Summary Preview
+          </div>
+
+          {loadingReportStats ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem', padding: '10px 0', textAlign: 'center' }}>
+              Loading summary details...
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Month:</span>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 700 }}>{formattedReportMonth}</span>
+              </div>
+              <div style={{ height: '1px', background: 'var(--border)' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Total Transactions:</span>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 700 }}>{reportTxCount} logs</span>
+              </div>
+              <div style={{ height: '1px', background: 'var(--border)' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Total Spent:</span>
+                <span style={{ fontSize: '1rem', color: 'var(--accent)', fontWeight: 800 }}>{formatCurrency(reportTotalSpent, currency)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons Row */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+          {/* Preview Button */}
+          <button
+            onClick={handleOpenPreview}
+            disabled={loadingReportStats || reportTxCount === 0}
+            style={{
+              width: '100%',
+              background: reportTxCount === 0 ? 'var(--text-muted)' : 'var(--accent)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '24px',
+              padding: '14px 24px',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              cursor: reportTxCount === 0 ? 'not-allowed' : 'pointer',
+              boxShadow: reportTxCount === 0 ? 'none' : '0 4px 12px var(--accent-glow)',
+              transition: 'all 0.15s ease',
+              opacity: reportTxCount === 0 ? 0.6 : 1,
+            }}
+          >
+            <Eye size={18} />
+            <span>Preview Report</span>
+          </button>
+
+          {/* Download Button */}
+          <button
+            onClick={handleGenerateReport}
+            disabled={isGeneratingReport || loadingReportStats || reportTxCount === 0}
+            style={{
+              width: '100%',
+              background: 'white',
+              border: '1.5px solid var(--border)',
+              borderRadius: '24px',
+              padding: '12px 24px',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              color: reportTxCount === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              cursor: reportTxCount === 0 || isGeneratingReport ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease',
+              opacity: reportTxCount === 0 ? 0.6 : 1,
+            }}
+          >
+            <FileDown size={18} />
+            <span>{isGeneratingReport ? 'Downloading...' : 'Download PDF Report'}</span>
+          </button>
+        </div>
+
+        {/* AI Spending Analysis Helper */}
+        <div className="card" style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.04) 0%, rgba(124, 58, 237, 0.04) 100%)', border: '1px solid rgba(99, 102, 241, 0.15)', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <Sparkles size={16} color="#6366f1" />
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>AI Spending Analysis</h3>
+          </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, marginBottom: '16px', fontWeight: 500 }}>
+            Analyze your spending pattern using Gemini, ChatGPT, or Claude. Copy a structured finance prompt containing your selected month's transaction summaries.
+          </p>
+          <button
+            onClick={handleCopyAiPrompt}
+            disabled={loadingReportStats || reportTxCount === 0}
+            style={{
+              width: '100%',
+              background: 'white',
+              border: '1.5px solid rgba(99, 102, 241, 0.3)',
+              borderRadius: '16px',
+              padding: '12px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              color: '#6366f1',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              cursor: reportTxCount === 0 ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease',
+              opacity: reportTxCount === 0 ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (reportTxCount > 0) {
+                e.currentTarget.style.background = 'rgba(99, 102, 241, 0.04)';
+                e.currentTarget.style.borderColor = '#6366f1';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'white';
+              e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+            }}
+          >
+            <Copy size={14} />
+            <span>{copiedPrompt ? 'Copied Prompt!' : 'Copy AI Prompt'}</span>
+          </button>
+        </div>
+
+        {/* PDF Preview Modal */}
+        {showPreviewModal && (
+          <div className="modal-overlay" onClick={handleClosePreview} style={{ zIndex: 1000 }}>
+            <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: '20px' }}>
+              
+              {/* Modal Header */}
+              <div className="modal-header" style={{ marginBottom: '16px', flexShrink: 0 }}>
+                <span className="modal-title" style={{ fontSize: '1.2rem', fontWeight: 800 }}>Report Preview</span>
+                <button className="modal-close" onClick={handleClosePreview} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', minHeight: '200px' }}>
+                {previewLoading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '250px', gap: '16px' }}>
+                    <div style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                    <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Compiling statement...</span>
+                  </div>
+                ) : (
+                  <>
+                    {pdfUrl ? (
+                      /* Browser Mode: Render actual PDF inside iframe */
+                      <iframe
+                        src={`${pdfUrl}#toolbar=0&navpanes=0`}
+                        style={{
+                          width: '100%',
+                          height: '400px',
+                          border: '1px solid var(--border)',
+                          borderRadius: '16px',
+                          background: '#f8fafc',
+                          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+                        }}
+                      />
+                    ) : (
+                      /* Mobile Mode: Render stylized premium document mockup */
+                      <div
+                        style={{
+                          background: 'white',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '16px',
+                          padding: '24px 20px',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          fontFamily: 'Helvetica, Arial, sans-serif'
+                        }}
+                      >
+                        {/* Top Accent bar */}
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'var(--accent)' }} />
+
+                        {/* Document Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', fontWeight: 800, fontSize: '1.25rem', lineHeight: 1.1 }}>
+                              <span style={{ color: 'var(--accent)' }}>My<span style={{ color: '#52666f' }}>ser</span></span>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent)' }}>FINANCIAL STATEMENT</div>
+                            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: 600 }}>
+                              PERIOD: {formattedReportMonth.toUpperCase()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ height: '1px', background: '#e2e8f0', marginBottom: '16px' }} />
+
+                        {/* Metadata Row */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prepared For:</div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginTop: '3px' }}>{user?.displayName || 'Myser User'}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '1px' }}>{user?.email || 'local-user@myser.app'}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Generated:</div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginTop: '3px' }}>{new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '1px' }}>Status: Official Ledger</div>
+                          </div>
+                        </div>
+
+                        {/* Stat Summary Box */}
+                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '20px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOTAL SPENT</div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)', marginTop: '2px' }}>{formatCurrency(reportTotalSpent, currency)}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TRANSACTION LOGS</div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', marginTop: '2px' }}>{reportTxCount} Entries</div>
+                          </div>
+                        </div>
+
+                        {/* Mini Ledger Preview */}
+                        <div>
+                          <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                            Recent Transactions Preview
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {previewTransactions.map((tx) => (
+                              <div key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '4px 0', borderBottom: '1px dashed #f1f5f9' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span style={{ fontWeight: 700, color: '#1e293b' }}>{tx.category_name}</span>
+                                  <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>{tx.date} • {tx.comment || tx.note || '—'}</span>
+                                </div>
+                                <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{formatCurrency(tx.amount, currency)}</span>
+                              </div>
+                            ))}
+                            {reportTxCount > 3 && (
+                              <div style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '6px' }}>
+                                ... and {reportTxCount - 3} more transactions logged in the statement.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
+                {/* Share Option */}
+                <button
+                  onClick={handleShareReport}
+                  disabled={previewLoading}
+                  style={{
+                    flex: 1,
+                    background: 'var(--accent)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '16px',
+                    padding: '14px',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px var(--accent-glow)'
+                  }}
+                >
+                  <Share2 size={16} />
+                  <span>Share Report</span>
+                </button>
+
+                {/* Save PDF Option */}
+                <button
+                  onClick={handleDownloadReport}
+                  disabled={previewLoading}
+                  style={{
+                    flex: 1,
+                    background: 'white',
+                    border: '1.5px solid var(--border)',
+                    borderRadius: '16px',
+                    padding: '12px',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <FileDown size={16} />
+                  <span>Save PDF</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+      </div>
+    );
+  }
+
   // --- MAIN SETTINGS DASHBOARD ---
   const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -1006,6 +1572,7 @@ export default function SettingsPage() {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '16px 0',
+              borderBottom: '1px solid var(--border)',
               cursor: 'pointer',
             }}
           >
@@ -1020,6 +1587,27 @@ export default function SettingsPage() {
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{mode}</span>
               <ChevronRight size={16} color="var(--text-muted)" />
             </div>
+          </div>
+
+          {/* Row 4: Month End Report */}
+          <div
+            onClick={() => setActiveSubPanel('report')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 0',
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <FileText size={18} color="var(--text-secondary)" />
+              <div>
+                <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', display: 'block' }}>Month End Report</span>
+                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '2px', display: 'block' }}>PDF Statements & AI Analysis</span>
+              </div>
+            </div>
+            <ChevronRight size={16} color="var(--text-muted)" />
           </div>
         </div>
       </div>
