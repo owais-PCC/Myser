@@ -45,5 +45,18 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- REVERSED_CLIENT_ID from GoogleService-Info.plist. Required
+				     so iOS routes Google Sign-In's OAuth redirect back into
+				     this app; without it GIDSignIn's completion handler never
+				     fires and the sign-in flow hangs forever with no error. -->
+				<string>com.googleusercontent.apps.566369077547-cshs5fvo4nn01hn22a4vp2k9b98seenf</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
