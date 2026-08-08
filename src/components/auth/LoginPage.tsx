@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signInWithCredential, sendPasswordResetEmail } from 'firebase/auth';
+import { useState, useEffect } from 'react';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, OAuthProvider, signInWithCredential, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import MyserLoader from '@/components/MyserLoader';
 
@@ -29,10 +29,37 @@ async function nativeGoogleSignIn() {
   await signInWithCredential(auth, credential);
 }
 
+// @capacitor-firebase/authentication already ships native signInWithApple()
+// support (confirmed in its type defs / README) — no need for the separate
+// @capacitor-community/apple-sign-in package the porting guide suggested,
+// which would just be a second, redundant native auth dependency.
+// `credential.nonce` here is the plugin's raw (unhashed) nonce; Firebase's
+// OAuthProvider.credential() expects that as `rawNonce` (it hashes/compares
+// internally against what was sent to Apple).
+async function nativeAppleSignIn() {
+  const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+  const result = await FirebaseAuthentication.signInWithApple();
+  const provider = new OAuthProvider('apple.com');
+  const credential = provider.credential({
+    idToken: result.credential?.idToken,
+    rawNonce: result.credential?.nonce,
+  });
+  await signInWithCredential(auth, credential);
+}
+
 function isNativePlatform(): boolean {
   try {
     const { Capacitor } = require('@capacitor/core');
     return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
+
+function isIOSPlatform(): boolean {
+  try {
+    const { Capacitor } = require('@capacitor/core');
+    return Capacitor.getPlatform() === 'ios';
   } catch {
     return false;
   }
@@ -44,6 +71,13 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  // Resolved after mount only, so SSR/client markup match (same reason
+  // AuthContext reads localStorage inside useEffect rather than at render).
+  const [showAppleButton, setShowAppleButton] = useState(false);
+
+  useEffect(() => {
+    setShowAppleButton(isIOSPlatform());
+  }, []);
 
   async function handleGoogleSignIn() {
     setError('');
@@ -57,6 +91,24 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
     } catch (e: unknown) {
       if (!isUserCancelledSignIn(e)) {
         setError(e instanceof Error ? e.message : 'Google sign-in failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAppleSignIn() {
+    setError('');
+    setLoading(true);
+    try {
+      if (isNativePlatform()) {
+        await nativeAppleSignIn();
+      } else {
+        await signInWithPopup(auth, new OAuthProvider('apple.com'));
+      }
+    } catch (e: unknown) {
+      if (!isUserCancelledSignIn(e)) {
+        setError(e instanceof Error ? e.message : 'Apple sign-in failed');
       }
     } finally {
       setLoading(false);
@@ -152,6 +204,37 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
           </svg>
           Continue with Google
         </button>
+
+        {/* Apple Sign In — iOS only (App Store Guideline 4.8 requires this
+            alongside Google on the iOS binary); not shown on Android/Web. */}
+        {showAppleButton && (
+          <button
+            onClick={handleAppleSignIn}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '14px',
+              borderRadius: '14px',
+              border: 'none',
+              background: '#000000',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              color: '#ffffff',
+              marginTop: '12px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 384 512" fill="#ffffff">
+              <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76-19.7C63.3 141 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
+            </svg>
+            Continue with Apple
+          </button>
+        )}
 
         {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '24px 0' }}>

@@ -48,15 +48,38 @@ Also added the roadmap's "Forgot password?" link (`sendPasswordResetEmail`) to `
 
 ## MYS-2 — Sign in with Apple (App Store Guideline 4.8)
 
+**Status:** code-complete, verification blocked (see below)
+
+Audited before writing anything: `@capacitor-firebase/authentication` (already installed for Google) has built-in native `signInWithApple()` support across iOS/Android/Web (confirmed in its type defs + README) — so the porting guide's suggestion to install `@capacitor-community/apple-sign-in` was unnecessary and would've added a redundant second native auth plugin. Reused the existing one instead, mirroring the exact bridging pattern already used for Google.
+
+**Changes made:**
+- `capacitor.config.ts`: added `'apple.com'` to `FirebaseAuthentication.providers`.
+- `LoginPage.tsx`: `nativeAppleSignIn()` (native plugin → `OAuthProvider('apple.com').credential({idToken, rawNonce})` → `signInWithCredential`) + web fallback via `signInWithPopup(auth, new OAuthProvider('apple.com'))`; reuses the MYS-1 `isUserCancelledSignIn()` helper so Apple cancellation is handled the same way as Google. Button gated to iOS only (`Capacitor.getPlatform() === 'ios'`, resolved post-mount to avoid SSR mismatch) per the roadmap's scope and Apple's actual review requirement.
+- `tsc --noEmit` clean.
+
+**Cannot be verified from this environment — explicitly blocked on:**
+1. **No `ios/` platform exists** in this repo (only `android/`) — no `@capacitor/ios`, no Xcode project. Nothing here can be compiled/run for iOS yet.
+2. **Apple provider not enabled in Firebase Console** (`masyr-9dbb9`) — manual console step, not code.
+3. **Apple Developer Program enrollment + "Sign In with Apple" capability/entitlement** on the App ID — manual step in the Apple Developer portal, requires a paid membership.
+4. **No device/simulator test has been run.** See the new MYS-2a ticket below for the concrete path to close this gap using Appetize.io (no Mac required).
+
+**Depends on:** MYS-1 (done). **Blocked on:** MYS-2a for verification.
+
+---
+
+## MYS-2a — iOS platform scaffolding + Appetize.io simulator testing pipeline
+
 **Status:** todo
 
-**Current state:** only Google + Email/Password providers exist. No Apple provider configured in Firebase Console or in `LoginPage.tsx`.
+**Why this exists:** MYS-2 (and every subsequent iOS-facing ticket) can't be verified from this Windows/no-Mac environment without some way to actually run the app on iOS. `IOS_PORTING_GUIDE.md` already names the tool for this — Appetize.io, an iOS Simulator that runs inside a browser tab, fed by a `.app` build. The guide's original GitHub Actions example builds a **device** archive (`-sdk iphoneos`, needs code-signing certs) for TestFlight; Appetize instead wants a **simulator** build (`-sdk iphonesimulator`), which needs no Apple certificates at all — meaningfully lower setup cost, and buildable purely from CI.
 
-**Why it's a ticket:** Apple will reject the app at review if a 3rd-party social login (Google) is present without Sign in with Apple alongside it — this blocks iOS submission entirely, not just a nice-to-have.
+**Fix:**
+1. `npm install -D @capacitor/ios`, then `npx cap add ios` — needs to run somewhere with Xcode command-line tools available, i.e. inside the GitHub Actions `macos-latest` runner itself, not locally. Commit the generated `ios/` folder (Capacitor's convention — native folders are checked in, not gitignored).
+2. Add `.github/workflows/ios-simulator-build.yml`: on push (or workflow_dispatch), `npm ci` → `npm run build` → `npx cap sync ios` → `xcodebuild -workspace ios/App/App.xcworkspace -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath build build` (no signing needed for simulator) → zip the resulting `.app` and upload as a workflow artifact.
+3. Download the artifact, upload the `.app.zip` to Appetize.io (free tier: 100 min/month, no account needed for one-off testing), get a shareable simulator URL.
+4. Once this exists, re-open MYS-2 to actually click through Apple sign-in on the simulator and confirm the credential bridge works, then flip its status to `done`.
 
-**Fix:** `npm install @capacitor-community/apple-sign-in`; enable Apple provider in Firebase Console (`masyr-9dbb9`); add "Continue with Apple" button in `LoginPage.tsx`, gated to iOS (`Capacitor.getPlatform() === 'ios'`) — plumb through the MYS-1 error/status handling rather than inventing a second error path.
-
-**Depends on:** MYS-1.
+**Depends on:** none (can start anytime — it's pure CI/tooling, no app code changes). **Unblocks:** MYS-2 verification, and all future iOS-facing tickets in `IOS_PORTING_GUIDE.md`.
 
 ---
 
