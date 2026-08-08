@@ -75,12 +75,29 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         setStatus('idle');
       }
     } catch {
+      // Reset the dedupe guard so a transient failure (network blip, or the
+      // Firebase SDK's internal auth token not fully attached yet right
+      // after this uid first became current) doesn't permanently lock this
+      // uid out of ever retrying — without this, the only recovery used to
+      // be a full app reload.
+      lastCheckedUid.current = null;
       setStatus('error');
     }
   }, [user, authLoading, markAsReturning]);
 
   useEffect(() => {
     checkAndPull();
+  }, [checkAndPull]);
+
+  // Retry automatically once the device comes back online, since a
+  // network-blip failure would otherwise sit in 'error' until the user
+  // manually reloads the app.
+  useEffect(() => {
+    function handleOnline() {
+      checkAndPull();
+    }
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
   }, [checkAndPull]);
 
   async function enableSync() {

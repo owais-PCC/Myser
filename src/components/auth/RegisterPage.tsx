@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { useAuth } from '@/context/AuthContext';
 import MyserLoader from '@/components/MyserLoader';
 
 interface RegisterPageProps {
@@ -10,6 +11,7 @@ interface RegisterPageProps {
 }
 
 export default function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
+  const { refreshUser } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,6 +30,10 @@ export default function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(cred.user, { displayName: name.trim() });
+      // updateProfile mutates auth.currentUser locally but does NOT re-fire
+      // onAuthStateChanged, so AuthContext would otherwise keep the stale
+      // pre-update user (displayName: null) until the next full sign-in.
+      await refreshUser();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Registration failed';
       if (msg.includes('email-already-in-use')) {

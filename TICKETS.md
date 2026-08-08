@@ -28,19 +28,19 @@ Working tree currently holds finished, coherent changes that should land before 
 
 ## MYS-1 — Auth state machine & sign-in reliability
 
-**Status:** todo (cache-on-load already landed via MYS-0)
+**Status:** done
 
-**Current state (`src/context/AuthContext.tsx`):** exposes only `user`, `loading`, `isReturningUser`, `hasCompletedOnboarding`. `loading` is a single boolean set to `false` as soon as either the localStorage cache or the first `onAuthStateChanged` callback resolves — there's no way for the UI to distinguish "not yet checked," "actively signing in," and "sign-in failed." Google sign-in dismissal / popup-closed errors aren't caught anywhere in this file, so a canceled native picker likely bubbles up as an unhandled rejection wherever `signIn()` is called.
+Full line-by-line audit of the auth path (`firebase.ts`, `AuthContext.tsx`, `LoginPage.tsx`, `RegisterPage.tsx`, `AuthGate.tsx`, `SyncContext.tsx`, `firestore-sync.ts`, `clear-user-data.ts`, `AppDrawer.tsx`, `PageHeader.tsx`, `OnboardingFlow.tsx`, plus the native `@capacitor-firebase/authentication` Android source) surfaced 5 concrete gaps, all verified against actual code/plugin source rather than assumed from filenames:
 
-**Root cause:** `loading: boolean` collapses 4 real states into 1, and there's no error channel on the context at all.
+1. **`signOut()` wiped local data before confirming remote sign-out** (`AuthContext.tsx`) — `clearAllUserData()` ran unconditionally before an un-caught `await firebaseSignOut(auth)`; a rejected remote call left local data gone but `user` state stale. **Fixed:** remote sign-out now attempted first (try/catch), local wipe + state reset moved into `finally`.
+2. **Native Google sign-in cancellation misdetected as a real error** (`LoginPage.tsx`) — cancel check only matched British `'cancelled'`; Android's native plugin throws `"Authorization canceled."` (American spelling), confirmed in `node_modules/@capacitor-firebase/authentication/android/.../GoogleAuthProviderHandler.java:84`. **Fixed:** `isUserCancelledSignIn()` matches both spellings.
+3. **Registered display name never appeared until re-login** (`RegisterPage.tsx`) — `updateProfile()` doesn't re-fire `onAuthStateChanged`, so `AuthContext` kept the stale pre-update user. **Fixed:** added `AuthContext.refreshUser()`, called right after `updateProfile`.
+4. **`SyncContext` could get permanently stuck in `'error'`** — the per-uid dedupe ref was set before the cloud check succeeded/failed, so a single transient failure locked that uid out of ever retrying without a full reload. **Fixed:** ref resets on failure; added an `online` event listener to retry automatically.
+5. **Cold-start trusts a cached localStorage user before Firebase confirms the session** — left as intentional offline-first behavior per product decision; documented with a code comment rather than changed (local SQLite isn't gated by Firebase anyway; Firestore rules still block real cloud access without a live token).
 
-**Fix:**
-1. Replace `loading: boolean` with a `status: 'idle' | 'authenticating' | 'authenticated' | 'error'` enum (keep `loading` as a derived boolean for existing call sites, or grep-replace usages).
-2. Add `authError: string | null` to context, cleared on new sign-in attempt.
-3. Wrap Google sign-in call in try/catch; specifically swallow `auth/popup-closed-by-user` / `auth/cancelled-popup-request` without setting `authError` (user just changed their mind), surface everything else.
-4. Add "Forgot password?" reset link to `LoginPage.tsx` using `sendPasswordResetEmail`.
+Also added the roadmap's "Forgot password?" link (`sendPasswordResetEmail`) to `LoginPage.tsx`.
 
-**Acceptance criteria:** closing the Google account picker doesn't show an error screen; a real auth failure shows inline text near the sign-in button, not a full-screen crash; `tsc --noEmit` clean.
+`tsc --noEmit` clean after all changes.
 
 **Depends on:** none. **Blocks:** MYS-2 (Apple Sign-In slots into the same LoginPage error handling).
 

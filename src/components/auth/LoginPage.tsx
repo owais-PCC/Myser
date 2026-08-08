@@ -1,12 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signInWithCredential, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import MyserLoader from '@/components/MyserLoader';
 
 interface LoginPageProps {
   onSwitchToRegister: () => void;
+}
+
+// The web SDK rejects with `auth/popup-closed-by-user` /
+// `auth/cancelled-popup-request`. The native Capacitor Google auth plugin
+// rejects with the plain message "Authorization canceled." (American
+// spelling, single L) — see
+// node_modules/@capacitor-firebase/authentication/android/.../GoogleAuthProviderHandler.java.
+// Checking only the British "cancelled" spelling misses the native case
+// entirely, so every mobile user backing out of the account picker used to
+// see a full error banner. Match both spellings, case-insensitively.
+function isUserCancelledSignIn(e: unknown): boolean {
+  const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+  return msg.includes('popup-closed') || msg.includes('cancelled') || msg.includes('canceled');
 }
 
 async function nativeGoogleSignIn() {
@@ -30,6 +43,7 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   async function handleGoogleSignIn() {
     setError('');
@@ -41,8 +55,9 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
         await signInWithPopup(auth, googleProvider);
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Google sign-in failed';
-      if (!msg.includes('popup-closed') && !msg.includes('cancelled')) setError(msg);
+      if (!isUserCancelledSignIn(e)) {
+        setError(e instanceof Error ? e.message : 'Google sign-in failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -65,6 +80,31 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
         setError('No account found with this email');
       } else {
         setError('Sign-in failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setError('Enter your email above first, then tap "Forgot password?"');
+      return;
+    }
+    setError('');
+    setResetSent(false);
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetSent(true);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to send reset email';
+      if (msg.includes('user-not-found')) {
+        setError('No account found with this email');
+      } else if (msg.includes('invalid-email')) {
+        setError('Invalid email address');
+      } else {
+        setError('Failed to send reset email. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -139,6 +179,22 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
             onKeyDown={(e) => e.key === 'Enter' && handleEmailSignIn()}
             style={{ fontSize: '0.95rem' }}
           />
+
+          <div style={{ textAlign: 'right' }}>
+            <button
+              onClick={handleForgotPassword}
+              disabled={loading}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+            >
+              Forgot password?
+            </button>
+          </div>
+
+          {resetSent && (
+            <div style={{ fontSize: '0.82rem', color: 'var(--success)', fontWeight: 600, textAlign: 'center' }}>
+              Password reset email sent — check your inbox.
+            </div>
+          )}
 
           {error && (
             <div style={{ fontSize: '0.82rem', color: 'var(--danger)', fontWeight: 600, textAlign: 'center' }}>
