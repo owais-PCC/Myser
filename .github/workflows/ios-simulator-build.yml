@@ -48,13 +48,21 @@ jobs:
 
       - name: Build for iOS Simulator (no code signing required)
         run: |
+          # Without an explicit -destination, ONLY_ACTIVE_ARCH=YES resolved
+          # to x86_64-only on this arm64 runner (confirmed in a prior failed
+          # run's log) — Appetize couldn't read/run a build built for the
+          # wrong slice. Force a generic simulator destination and
+          # ONLY_ACTIVE_ARCH=NO so both arm64 and x86_64 get built into one
+          # universal binary, working regardless of Appetize's host arch.
           xcodebuild \
             -workspace ios/App/App.xcworkspace \
             -scheme App \
             -sdk iphonesimulator \
             -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
             build
 
       - name: Zip the .app for Appetize.io
