@@ -65,7 +65,7 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             build
 
-      - name: Zip the .app for Appetize.io
+      - name: Locate the built .app
         run: |
           APP_PATH=$(find build/Build/Products -name "*.app" -type d | head -n 1)
           if [ -z "$APP_PATH" ]; then
@@ -74,18 +74,25 @@ jobs:
             exit 1
           fi
           echo "Found app at $APP_PATH"
-          cd "$(dirname "$APP_PATH")"
-          zip -r -X "$GITHUB_WORKSPACE/Myser-simulator.zip" "$(basename "$APP_PATH")"
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: myser-ios-simulator-app
-          path: Myser-simulator.zip
+          # Upload the .app folder itself, not a pre-made zip of it.
+          # actions/upload-artifact always wraps whatever path you give it in
+          # its own zip for download — pointing it at an already-zipped file
+          # produces a zip-of-a-zip (myser-ios-simulator-app.zip containing
+          # Myser-simulator.zip containing App.app), which confused Appetize
+          # ("No .app folder found") when the outer zip was uploaded as-is.
+          # Pointing it at the raw .app folder means the downloaded zip has
+          # App.app directly at its root, ready to upload to Appetize as-is.
+          path: ${{ env.APP_PATH }}
           retention-days: 14
 
 # To use: run this workflow from the Actions tab, download the
-# "myser-ios-simulator-app" artifact when it finishes, unzip it, then drag
-# the resulting Myser-simulator.zip (or the .app inside it) onto
-# https://appetize.io/upload — no Apple Developer account or Mac needed to
+# "myser-ios-simulator-app" artifact when it finishes — it's a single-level
+# zip with App.app at its root — and drag it straight onto
+# https://appetize.io/upload. No Apple Developer account or Mac needed to
 # view/test the result, just a browser.
