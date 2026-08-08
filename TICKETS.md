@@ -85,10 +85,12 @@ Audited before writing anything: `@capacitor-firebase/authentication` (already i
 3. `cap sync` failed: "The Capacitor CLI requires NodeJS >=22.0.0" — the workflow specified Node 20. Fixed: bumped to Node 22.
 4. The zip step failed with "Nothing to do!" — my own `find build/Build/Products -maxdepth 1 -name "*.app"` was one directory too shallow (the `.app` sits under `Products/Debug-iphonesimulator/`, not directly under `Products/`). Fixed: dropped the depth limit and added an explicit failure message if no `.app` is found, instead of silently feeding an empty path to `zip`.
 
-Build is now green end-to-end (`build-ios-simulator` run [31251864284](https://github.com/owais-PCC/Myser/actions/runs/31251864284), ~4 minutes) and produced the `myser-ios-simulator-app` artifact.
+5. First Appetize upload of that artifact reported "uploaded successfully but we were unable to process the file for additional details" with a placeholder icon/name. Traced via the build log: with no `-destination` passed, `ONLY_ACTIVE_ARCH=YES` had resolved to an `x86_64`-only build on the `arm64` `macos-latest` runner — confirmed by grepping `Objects-normal/x86_64/` for the `App` target with no matching `arm64` directory. Fixed by adding `-destination 'generic/platform=iOS Simulator'` and `ONLY_ACTIVE_ARCH=NO`, forcing a universal `arm64`+`x86_64` build — re-verified in the next run's log: `CreateUniversalBinary ... normal arm64 x86_64` and `lipo -create` now appear for every framework.
+
+Build is now green end-to-end (`build-ios-simulator` run [31252531776](https://github.com/owais-PCC/Myser/actions/runs/31252531776), ~3 minutes) with a confirmed universal-arch artifact.
 
 **Remaining:**
-1. Download the artifact, upload to https://appetize.io/upload (free tier, no account needed for one-off testing), get a shareable simulator URL.
+1. Download the fresh artifact, upload to https://appetize.io/upload, confirm it now shows real app metadata (icon/name) instead of "Unknown Name" and actually launches on Start.
 3. **Sign in with Apple's entitlement is not yet wired up** — Capacitor's default template has no `.entitlements` file and no `CODE_SIGN_ENTITLEMENTS` build setting. Normally Xcode's "Signing & Capabilities" UI adds this automatically when you toggle on "Sign in with Apple" — since there's no Xcode here, this needs either (a) doing that one toggle whenever the project is first opened in real Xcode, or (b) carefully scripting the `.entitlements` file + `project.pbxproj` edit by hand. Deferred rather than hand-edited blind, since a malformed `.pbxproj` is easy to create and hard to debug without Xcode to validate it. Apple sign-in will not actually complete on a real build until this exists.
 4. Once the simulator link works, re-open MYS-2, click through Apple sign-in, confirm the credential bridge works, then flip MYS-2 to `done`.
 
