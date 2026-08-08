@@ -1,0 +1,64 @@
+name: Build iOS Simulator App (Appetize.io)
+
+# Manual trigger only. macOS runners bill at a 10x minute multiplier on
+# GitHub Actions — this is meant to be run on demand when we actually need
+# to test something on iOS (e.g. verifying MYS-2's Apple sign-in), not on
+# every push.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-ios-simulator:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js static export
+        run: npm run build
+
+      - name: Install CocoaPods dependencies
+        run: cd ios/App && pod install
+
+      - name: Sync web build into iOS project
+        run: npx cap sync ios
+
+      - name: Build for iOS Simulator (no code signing required)
+        run: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Zip the .app for Appetize.io
+        run: |
+          APP_PATH=$(find build/Build/Products -maxdepth 1 -name "*.app" -type d | head -n 1)
+          echo "Found app at $APP_PATH"
+          cd "$(dirname "$APP_PATH")"
+          zip -r -X "$GITHUB_WORKSPACE/Myser-simulator.zip" "$(basename "$APP_PATH")"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: myser-ios-simulator-app
+          path: Myser-simulator.zip
+          retention-days: 14
+
+# To use: run this workflow from the Actions tab, download the
+# "myser-ios-simulator-app" artifact when it finishes, unzip it, then drag
+# the resulting Myser-simulator.zip (or the .app inside it) onto
+# https://appetize.io/upload — no Apple Developer account or Mac needed to
+# view/test the result, just a browser.

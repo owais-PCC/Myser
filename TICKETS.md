@@ -69,17 +69,23 @@ Audited before writing anything: `@capacitor-firebase/authentication` (already i
 
 ## MYS-2a — iOS platform scaffolding + Appetize.io simulator testing pipeline
 
-**Status:** todo
+**Status:** scaffolding done, first CI run pending
 
-**Why this exists:** MYS-2 (and every subsequent iOS-facing ticket) can't be verified from this Windows/no-Mac environment without some way to actually run the app on iOS. `IOS_PORTING_GUIDE.md` already names the tool for this — Appetize.io, an iOS Simulator that runs inside a browser tab, fed by a `.app` build. The guide's original GitHub Actions example builds a **device** archive (`-sdk iphoneos`, needs code-signing certs) for TestFlight; Appetize instead wants a **simulator** build (`-sdk iphonesimulator`), which needs no Apple certificates at all — meaningfully lower setup cost, and buildable purely from CI.
+**Why this exists:** MYS-2 (and every subsequent iOS-facing ticket) can't be verified from this Windows/no-Mac environment without some way to actually run the app on iOS. `IOS_PORTING_GUIDE.md` names the tool for this — Appetize.io, an iOS Simulator that runs inside a browser tab, fed by a `.app` build. The guide's original GitHub Actions example builds a **device** archive (`-sdk iphoneos`, needs code-signing certs) for TestFlight; Appetize instead wants a **simulator** build (`-sdk iphonesimulator`), which needs no Apple certificates at all.
 
-**Fix:**
-1. `npm install -D @capacitor/ios`, then `npx cap add ios` — needs to run somewhere with Xcode command-line tools available, i.e. inside the GitHub Actions `macos-latest` runner itself, not locally. Commit the generated `ios/` folder (Capacitor's convention — native folders are checked in, not gitignored).
-2. Add `.github/workflows/ios-simulator-build.yml`: on push (or workflow_dispatch), `npm ci` → `npm run build` → `npx cap sync ios` → `xcodebuild -workspace ios/App/App.xcworkspace -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath build build` (no signing needed for simulator) → zip the resulting `.app` and upload as a workflow artifact.
-3. Download the artifact, upload the `.app.zip` to Appetize.io (free tier: 100 min/month, no account needed for one-off testing), get a shareable simulator URL.
-4. Once this exists, re-open MYS-2 to actually click through Apple sign-in on the simulator and confirm the credential bridge works, then flip its status to `done`.
+**Correction to the original plan:** assumed `npx cap add ios` needed macOS/Xcode and would have to run inside CI each time. Tested it directly — it actually runs fine on Windows (it only *skips* `pod install` and the `xcodebuild` clean step, both of which gracefully no-op without their tools present). So `ios/` has been generated and **committed** to the repo now, following Capacitor's own convention (native platform folders are checked in, not regenerated per build) — this means Info.plist / entitlements / other native config can be hand-edited directly from this Windows machine going forward, no CI round-trip needed for that. Capacitor ships `ios/.gitignore` which already correctly excludes `Pods/`, `App/App/public` (synced web build output), `DerivedData`, and `xcuserdata`.
 
-**Depends on:** none (can start anytime — it's pure CI/tooling, no app code changes). **Unblocks:** MYS-2 verification, and all future iOS-facing tickets in `IOS_PORTING_GUIDE.md`.
+**Done:**
+1. Added `@capacitor/ios` to `package.json`, ran `npx cap add ios`, committed the resulting `ios/` folder.
+2. Added `.github/workflows/ios-simulator-build.yml` — manual-trigger-only (`workflow_dispatch`; macOS runners bill at a 10x minute multiplier, so this shouldn't run on every push). Steps: `npm ci` → `npm run build` → `pod install` (in `ios/App`) → `npx cap sync ios` → `xcodebuild -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO` → zip the `.app` → upload as a workflow artifact.
+
+**Remaining:**
+1. Trigger the workflow from the Actions tab (needs to be pushed first) and confirm it produces a valid artifact.
+2. Download the artifact, upload to https://appetize.io/upload (free tier, no account needed for one-off testing), get a shareable simulator URL.
+3. **Sign in with Apple's entitlement is not yet wired up** — Capacitor's default template has no `.entitlements` file and no `CODE_SIGN_ENTITLEMENTS` build setting. Normally Xcode's "Signing & Capabilities" UI adds this automatically when you toggle on "Sign in with Apple" — since there's no Xcode here, this needs either (a) doing that one toggle whenever the project is first opened in real Xcode, or (b) carefully scripting the `.entitlements` file + `project.pbxproj` edit by hand. Deferred rather than hand-edited blind, since a malformed `.pbxproj` is easy to create and hard to debug without Xcode to validate it. Apple sign-in will not actually complete on a real build until this exists.
+4. Once the simulator link works, re-open MYS-2, click through Apple sign-in, confirm the credential bridge works, then flip MYS-2 to `done`.
+
+**Depends on:** none. **Unblocks:** MYS-2 verification, and all future iOS-facing tickets in `IOS_PORTING_GUIDE.md`.
 
 ---
 
