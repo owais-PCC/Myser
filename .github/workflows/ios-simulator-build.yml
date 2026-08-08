@@ -46,7 +46,7 @@ jobs:
       - name: Sync web build into iOS project
         run: npx cap sync ios
 
-      - name: Build for iOS Simulator (no code signing required)
+      - name: Build for iOS Simulator (ad-hoc signed, no Apple Developer account needed)
         run: |
           # Without an explicit -destination, ONLY_ACTIVE_ARCH=YES resolved
           # to x86_64-only on this arm64 runner (confirmed in a prior failed
@@ -54,6 +54,15 @@ jobs:
           # wrong slice. Force a generic simulator destination and
           # ONLY_ACTIVE_ARCH=NO so both arm64 and x86_64 get built into one
           # universal binary, working regardless of Appetize's host arch.
+          #
+          # CODE_SIGN_IDENTITY="-" ad-hoc-signs the app locally (works on any
+          # Mac, no certificates/Apple Developer account required) instead of
+          # skipping signing entirely. A fully unsigned app has no
+          # entitlements blob at all, which made FirebaseAuth's keychain
+          # calls fail on a real device test ("SecItemCopyMatching -34018:
+          # A required entitlement isn't present"). Ad-hoc signing still
+          # produces a valid (if minimal) entitlements blob, which resolves
+          # that without needing real code-signing credentials.
           xcodebuild \
             -workspace ios/App/App.xcworkspace \
             -scheme App \
@@ -61,7 +70,9 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=YES \
             ONLY_ACTIVE_ARCH=NO \
             build
 
