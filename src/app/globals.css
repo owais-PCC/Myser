@@ -534,20 +534,25 @@ html, body {
 .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: 8px;
 }
 
 .key-btn {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
-  font-size: 1.1rem;
-  font-weight: 600;
+  border-radius: 8px;
+  padding: 14px 10px;
+  min-height: 48px;
+  font-size: 1.15rem;
+  font-weight: 700;
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
 .key-btn:hover {
@@ -556,8 +561,9 @@ html, body {
 }
 
 .key-btn:active {
-  transform: scale(0.95);
-  background: var(--accent-glow);
+  transform: scale(0.96);
+  background: var(--accent-light);
+  border-color: var(--accent);
 }
 
 .key-btn.key-delete {
