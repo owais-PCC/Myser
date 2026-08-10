@@ -1,5 +1,5 @@
 import { auth } from './firebase';
-import { GoogleAuthProvider, signInWithPopup, signInWithCredential } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signInWithCredential, browserPopupRedirectResolver } from 'firebase/auth';
 import { getDocuments, getDocumentData, addDocument, saveDocumentData, getDb, persistDb } from './db';
 
 const FOLDER_NAME = 'Myser Receipts';
@@ -69,7 +69,9 @@ async function getAccessToken(): Promise<string | null> {
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.file');
     try {
-      const result = await signInWithPopup(auth, provider);
+      // auth is initialized with popupRedirectResolver: undefined (see
+      // firebase.ts), so the resolver must be supplied per-call here.
+      const result = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       token = credential?.accessToken || null;
     } catch {

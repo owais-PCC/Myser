@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, OAuthProvider, signInWithCredential, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, OAuthProvider, signInWithCredential, sendPasswordResetEmail, browserPopupRedirectResolver } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import MyserLoader from '@/components/MyserLoader';
 
@@ -86,7 +86,9 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
       if (isNativePlatform()) {
         await nativeGoogleSignIn();
       } else {
-        await signInWithPopup(auth, googleProvider);
+        // auth is initialized with popupRedirectResolver: undefined (see
+        // firebase.ts), so the resolver must be supplied per-call here.
+        await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
       }
     } catch (e: unknown) {
       if (!isUserCancelledSignIn(e)) {
@@ -104,7 +106,7 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
       if (isNativePlatform()) {
         await nativeAppleSignIn();
       } else {
-        await signInWithPopup(auth, new OAuthProvider('apple.com'));
+        await signInWithPopup(auth, new OAuthProvider('apple.com'), browserPopupRedirectResolver);
       }
     } catch (e: unknown) {
       if (!isUserCancelledSignIn(e)) {
