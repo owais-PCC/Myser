@@ -110,7 +110,7 @@ export default function BudgetPage() {
 
   if (mode === 'tracker') {
     return (
-      <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px' }}>
+      <div className="page-content" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
         <PageHeader title="Budget" />
         <div className="card" style={{ marginTop: '16px', textAlign: 'center', padding: '40px 20px' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '16px' }}>📊</div>
@@ -125,7 +125,7 @@ export default function BudgetPage() {
   }
 
   return (
-    <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 16px)' }}>
+    <div className="page-content" style={{ paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 16px)' }}>
       <PageHeader title="Budget" />
 
       <div style={{ marginBottom: '16px' }}>

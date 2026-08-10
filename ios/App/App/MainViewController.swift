@@ -31,6 +31,12 @@ class MainViewController: CAPBridgeViewController {
         return Int(Date().timeIntervalSince(startTime) * 1000)
     }
 
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Prevent WebKit scroll view from injecting its own uncoordinated content insets
+        webView?.scrollView.contentInsetAdjustmentBehavior = .never
+    }
+
     override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
         applyAndInspect(source: "viewSafeAreaInsetsDidChange")
@@ -44,9 +50,7 @@ class MainViewController: CAPBridgeViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         applyAndInspect(source: "viewDidAppear")
-        // Poll every 0.5s for 5s after the view appears, entirely without
-        // any user interaction, to see whether/when the layout settles on
-        // its own.
+        // Poll every 0.5s for 5s after the view appears to ensure layout remains synced.
         for i in 1...10 {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.5) { [weak self] in
                 self?.applyAndInspect(source: "poll#\(i)")
@@ -55,22 +59,24 @@ class MainViewController: CAPBridgeViewController {
     }
 
     private func applyAndInspect(source: String) {
+        let topInset = view.safeAreaInsets.top
         let bottomInset = view.safeAreaInsets.bottom
+        let viewHeight = view.bounds.height
         let elapsed = elapsedMs()
         let js = """
         (function() {
+          document.documentElement.style.setProperty('--ios-safe-area-top-fallback', '\(topInset)px');
           document.documentElement.style.setProperty('--ios-safe-area-bottom-fallback', '\(bottomInset)px');
-          // Test theory: native windowInnerHeight settles correctly within
-          // ~3s on its own (confirmed in a prior diagnostic run), but the
-          // page's own 100vh-based CSS layout doesn't reactively recompute
-          // to match without an explicit trigger — a known iOS WebKit
-          // quirk (viewport units / fixed-position geometry can get stuck
-          // on a stale snapshot until something forces a reflow, which is
-          // what a double-tap does as a side effect of its zoom-reset
-          // gesture). Dispatching a synthetic resize event here, before
-          // reading anything back, tests whether that alone is enough to
-          // force the correct recomputation without needing a real tap.
+          if (\(viewHeight) > 0) {
+            document.documentElement.style.setProperty('--app-height', '\(viewHeight)px');
+          }
+          // Force a synchronous WebKit layout reflow & compositor flush:
+          document.documentElement.classList.add('ios-ready');
+          if (document.body) {
+            void document.body.offsetHeight;
+          }
           window.dispatchEvent(new Event('resize'));
+
           var nav = document.querySelector('.bottom-nav');
           var rect = nav ? nav.getBoundingClientRect() : null;
           var cs = nav ? getComputedStyle(nav) : null;
@@ -83,7 +89,9 @@ class MainViewController: CAPBridgeViewController {
             href: window.location.href,
             navFound: !!nav,
             navHeightVar: getComputedStyle(document.documentElement).getPropertyValue('--nav-height'),
-            fallbackVar: getComputedStyle(document.documentElement).getPropertyValue('--ios-safe-area-bottom-fallback'),
+            topFallbackVar: getComputedStyle(document.documentElement).getPropertyValue('--ios-safe-area-top-fallback'),
+            bottomFallbackVar: getComputedStyle(document.documentElement).getPropertyValue('--ios-safe-area-bottom-fallback'),
+            appHeightVar: getComputedStyle(document.documentElement).getPropertyValue('--app-height'),
             navRectHeight: rect ? rect.height : null,
             navRectBottom: rect ? rect.bottom : null,
             navComputedHeight: cs ? cs.height : null,
@@ -103,9 +111,9 @@ class MainViewController: CAPBridgeViewController {
         """
         webView?.evaluateJavaScript(js) { result, error in
             if let error = error {
-                NSLog("[SafeAreaDebug] \(source) at +\(elapsed)ms, nativeBottom=\(bottomInset) — evaluateJavaScript FAILED: \(error)")
+                NSLog("[SafeAreaDebug] \(source) at +\(elapsed)ms, nativeTop=\(topInset), nativeBottom=\(bottomInset) — evaluateJavaScript FAILED: \(error)")
             } else {
-                NSLog("[SafeAreaDebug] \(source) at +\(elapsed)ms, nativeBottom=\(bottomInset) — result: \(result ?? "nil")")
+                NSLog("[SafeAreaDebug] \(source) at +\(elapsed)ms, nativeTop=\(topInset), nativeBottom=\(bottomInset) — result: \(result ?? "nil")")
             }
         }
     }

@@ -454,7 +454,7 @@ export default function SettingsPage() {
   // --- SUB-PANEL: Currency Selector ---
   if (activeSubPanel === 'currency') {
     return (
-      <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 16px)' }}>
+      <div className="page-content" style={{ paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 16px)' }}>
         {toast && (
           <Toast message={toast.message} type={toast.type} onClose={hideToast} />
         )}
@@ -517,7 +517,7 @@ export default function SettingsPage() {
   // --- SUB-PANEL: App Mode Selector ---
   if (activeSubPanel === 'appMode') {
     return (
-      <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 24px)' }}>
+      <div className="page-content" style={{ paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 24px)' }}>
         {toast && (
           <Toast message={toast.message} type={toast.type} onClose={hideToast} />
         )}
@@ -775,7 +775,7 @@ export default function SettingsPage() {
   // --- SUB-PANEL: Categories Management ---
   if (activeSubPanel === 'categories') {
     return (
-      <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 24px)' }}>
+      <div className="page-content" style={{ paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 24px)' }}>
         {toast && (
           <Toast message={toast.message} type={toast.type} onClose={hideToast} />
         )}
@@ -1130,7 +1130,7 @@ export default function SettingsPage() {
     const formattedReportMonth = new Date(`${reportMonth}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
     return (
-      <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 24px)' }}>
+      <div className="page-content" style={{ paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 24px)' }}>
         {toast && (
           <Toast message={toast.message} type={toast.type} onClose={hideToast} />
         )}
@@ -1477,7 +1477,7 @@ export default function SettingsPage() {
   const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
-    <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 24px)' }}>
+    <div className="page-content" style={{ paddingLeft: '16px', paddingRight: '16px', paddingBottom: 'calc(var(--nav-height) + 24px)' }}>
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}

@@ -169,7 +169,7 @@ export default function AnalyticsPage() {
   const hasTransactions = catData.some((c) => c.spent > 0);
 
   return (
-    <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px' }}>
+    <div className="page-content" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}

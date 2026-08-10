@@ -36,8 +36,11 @@
      so this never under-pads if env() does work correctly somewhere, and
      stays at its 0px default (a complete no-op) on Android/web, which
      never sets this variable at all. */
+  --ios-safe-area-top-fallback: 0px;
   --ios-safe-area-bottom-fallback: 0px;
-  --nav-height: calc(76px + max(env(safe-area-inset-bottom, 0px), var(--ios-safe-area-bottom-fallback)));
+  --safe-area-top: max(env(safe-area-inset-top, 0px), var(--ios-safe-area-top-fallback));
+  --safe-area-bottom: max(env(safe-area-inset-bottom, 0px), var(--ios-safe-area-bottom-fallback));
+  --nav-height: calc(76px + var(--safe-area-bottom));
 }
 
 * {
@@ -48,6 +51,7 @@
 
 html, body {
   height: 100%;
+  min-height: 100%;
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
@@ -56,7 +60,9 @@ html, body {
 }
 
 #__next, main {
-  min-height: 100vh;
+  min-height: 100%;
+  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
 }
 
 /* Scrollbar */
@@ -75,7 +81,9 @@ html, body {
 .app-container {
   max-width: 430px;
   margin: 0 auto;
-  min-height: 100vh;
+  min-height: 100%;
+  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
   position: relative;
   background: var(--bg-primary);
   box-shadow: 0 0 40px rgba(0,0,0,0.08);
@@ -83,8 +91,11 @@ html, body {
 
 /* Content area above nav */
 .page-content {
+  padding-top: calc(var(--safe-area-top) + 20px);
   padding-bottom: calc(var(--nav-height) + 16px);
-  min-height: 100vh;
+  min-height: 100%;
+  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
 }
 
 /* Glass card */
@@ -170,12 +181,8 @@ html, body {
   align-items: center;
   justify-content: space-around;
   z-index: 100;
-  /* Bottom padding reserves the same safe-area portion added to
-     --nav-height above (must match, or the flex-centered nav icons would
-     shift into whatever gap the two disagree on) so the nav icons stay in
-     the original 76px zone at the top of the bar, above the
-     home-indicator gesture area, instead of being centered into it. */
-  padding: 0 8px max(env(safe-area-inset-bottom, 0px), var(--ios-safe-area-bottom-fallback));
+  /* Bottom padding reserves the safe-area portion added to --nav-height above */
+  padding: 0 8px var(--safe-area-bottom);
   box-shadow: 0 -4px 20px rgba(0,0,0,0.03);
 }
 

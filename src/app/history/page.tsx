@@ -90,7 +90,7 @@ export default function HistoryPage() {
   const count = filteredTxs.length;
 
   return (
-    <div className="page-content" style={{ paddingTop: '28px' }}>
+    <div className="page-content">
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}

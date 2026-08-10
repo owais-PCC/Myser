@@ -181,7 +181,7 @@ export default function VaultPage() {
   const emptyLabel = tab === 'receipt' ? 'No receipts yet' : 'No statements yet';
 
   return (
-    <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px' }}>
+    <div className="page-content" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
       <PageHeader title="My Logs" />
 
       {/* Tab Switcher */}

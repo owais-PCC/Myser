@@ -279,13 +279,13 @@ export default function LogPage() {
   ];
 
   return (
-    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
       {toast && (
         <Toast message={toast.message} type={toast.type} detail={toast.detail} onClose={hideToast} />
       )}
 
       {/* Fixed top section */}
-      <div style={{ flexShrink: 0, background: 'var(--bg-primary)', zIndex: 50, paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px' }}>
+      <div style={{ flexShrink: 0, background: 'var(--bg-primary)', zIndex: 50, paddingTop: 'calc(var(--safe-area-top) + 20px)', paddingLeft: '16px', paddingRight: '16px' }}>
         {/* Unallocated budget banner */}
         {mode === 'budget' && unallocated > 0 && (
           <div

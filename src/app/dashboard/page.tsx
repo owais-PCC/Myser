@@ -42,7 +42,7 @@ export default function DashboardPage() {
   const activeCategories = data.filter((c) => c.budget > 0);
 
   return (
-    <div className="page-content" style={{ paddingTop: '28px', paddingLeft: '16px', paddingRight: '16px' }}>
+    <div className="page-content" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
       {/* Header */}
       <PageHeader title={displayMonth} />
 
