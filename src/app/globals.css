@@ -17,15 +17,25 @@
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f59e0b;
-  /* 76px is the nav bar's actual content height; the safe-area-inset
-     addition accounts for iOS's home-indicator gesture bar, which
-     otherwise draws directly on top of (and visually clips) the nav.
-     Routed through this single variable since page content padding and
-     toast positioning elsewhere already do calc(var(--nav-height) + Npx)
-     and pick this up automatically. Requires viewport-fit=cover in the
-     viewport meta tag (see layout.tsx) — without it env() resolves to 0
-     even on notched/home-indicator devices. */
-  --nav-height: calc(76px + env(safe-area-inset-bottom, 0px));
+  /* 76px is the nav bar's actual content height. The bottom addition
+     accounts for iOS's home-indicator gesture bar, which otherwise draws
+     directly on top of (and visually clips) the nav. Routed through this
+     single variable since page content padding and toast positioning
+     elsewhere already do calc(var(--nav-height) + Npx) and pick this up
+     automatically.
+     Requires viewport-fit=cover in the viewport meta tag (see layout.tsx)
+     for env() to report anything at all on notched devices — but a real
+     device test showed env(safe-area-inset-bottom) still resolving to 0
+     inside Capacitor's WKWebView regardless (content loads via a custom
+     WKURLSchemeHandler, a context where WebKit is known to sometimes fail
+     to propagate safeAreaInsets to CSS). --ios-safe-area-bottom-fallback
+     is set to Apple's fixed 34px home-indicator constant via JS platform
+     detection (see BottomNav.tsx) as a guaranteed floor; max() picks
+     whichever value is actually larger, so this never under-pads if
+     env() does work correctly somewhere, and stays 0 (a complete no-op)
+     on Android/web where the fallback variable is never set. */
+  --ios-safe-area-bottom-fallback: 0px;
+  --nav-height: calc(76px + max(env(safe-area-inset-bottom, 0px), var(--ios-safe-area-bottom-fallback)));
 }
 
 * {
@@ -158,11 +168,12 @@ html, body {
   align-items: center;
   justify-content: space-around;
   z-index: 100;
-  /* Bottom padding reserves the safe-area portion of --nav-height so the
-     nav icons (centered via align-items) stay in the original 76px zone
-     at the top of the bar, above the home-indicator gesture area, instead
-     of being centered into it. */
-  padding: 0 8px env(safe-area-inset-bottom, 0px);
+  /* Bottom padding reserves the same safe-area portion added to
+     --nav-height above (must match, or the flex-centered nav icons would
+     shift into whatever gap the two disagree on) so the nav icons stay in
+     the original 76px zone at the top of the bar, above the
+     home-indicator gesture area, instead of being centered into it. */
+  padding: 0 8px max(env(safe-area-inset-bottom, 0px), var(--ios-safe-area-bottom-fallback));
   box-shadow: 0 -4px 20px rgba(0,0,0,0.03);
 }
 
