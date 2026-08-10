@@ -20,6 +20,7 @@ import { useCurrency } from '@/context/CurrencyContext';
 import { useAppMode } from '@/context/AppModeContext';
 import PageHeader from '@/components/PageHeader';
 import CategoryIcon from '@/components/CategoryIcon';
+import DatePickerModal from '@/components/DatePickerModal';
 import { Calendar, ChevronDown, PencilLine, Bell, Settings, Delete, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isSyncEnabled, uploadAllData } from '@/lib/firestore-sync';
@@ -74,6 +75,7 @@ export default function LogPage() {
   };
   const [loaded, setLoaded] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('🛒');
@@ -349,7 +351,7 @@ export default function LogPage() {
           {/* Date picker pill */}
           <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
             <button
-              onClick={handleDateClick}
+              onClick={() => setShowDatePickerModal(true)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -368,21 +370,15 @@ export default function LogPage() {
               <span>{formatDateLabel(date)}</span>
               <ChevronDown size={11} color="var(--text-muted)" />
             </button>
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              style={{
-                position: 'absolute',
-                opacity: 0,
-                pointerEvents: 'none',
-                width: 0,
-                height: 0,
-              }}
-            />
           </div>
         </div>
+
+        <DatePickerModal
+          isOpen={showDatePickerModal}
+          value={date}
+          onChange={setDate}
+          onClose={() => setShowDatePickerModal(false)}
+        />
       </div>
 
       {/* Scrollable bottom section */}
