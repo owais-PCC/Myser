@@ -9,41 +9,71 @@ import Capacitor
 /// looked structurally correct and was verified byte-for-byte in built
 /// artifacts, but real device tests kept showing the bottom nav clipped by
 /// the home indicator regardless — env(safe-area-inset-bottom) was
-/// resolving to 0 inside this WKWebView context (content loads through a
-/// custom WKURLSchemeHandler, a context WebKit is known to sometimes fail
-/// to propagate safeAreaInsets to CSS for). Rather than keep guessing at
-/// the web layer, this reads the safe area directly from UIKit — an
-/// unambiguous, always-correct native API with no browser-engine
-/// dependency — and hands it to the same CSS variable
-/// (--ios-safe-area-bottom-fallback) the shared globals.css formula
-/// already expects, so the rest of the UI code (--nav-height, .bottom-nav)
-/// doesn't need to know or care where the value came from.
+/// resolving to 0 inside this WKWebView context. Rather than keep
+/// guessing, this reads the safe area directly from UIKit and hands it to
+/// --ios-safe-area-bottom-fallback, the CSS variable globals.css's max()
+/// formula already expects.
+///
+/// DIAGNOSTIC BUILD: a real device test showed the fix only taking effect
+/// after a tap triggered a second layout pass — suggesting the first
+/// application landed before the real app page finished loading. Rather
+/// than guess at a fix (retries, hooking navigation delegates, etc.)
+/// without knowing the actual sequence, this build logs the timing and
+/// context of every attempt on both sides so the next test tells us
+/// exactly what's happening instead of us speculating further:
+///   - NSLog on the Swift side: which lifecycle method fired, when
+///     (elapsed ms since view controller creation), and what
+///     safeAreaInsets.bottom actually was at that moment.
+///   - console.log from the injected JS itself: confirms whether the
+///     evaluateJavaScript call actually reached a *document* at all
+///     (vs. silently failing), and critically, what document.readyState
+///     and window.location.href were at that moment — this tells us
+///     directly whether early calls are landing on a blank/about:blank
+///     document (confirming the race theory) or the real app page.
+/// These logs show up in Appetize's Debug Logs panel same as our other
+/// device tests.
 ///
 /// Android is untouched: MainActivity.java doesn't use this class at all,
 /// and --ios-safe-area-bottom-fallback simply stays at its 0px :root
 /// default there.
 class MainViewController: CAPBridgeViewController {
-    private var lastAppliedInset: CGFloat = -1
+    private let startTime = Date()
+
+    private func elapsedMs() -> Int {
+        return Int(Date().timeIntervalSince(startTime) * 1000)
+    }
 
     override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
-        applySafeAreaInsetToWebView()
+        NSLog("[SafeAreaDebug] viewSafeAreaInsetsDidChange at +\(elapsedMs())ms, bottom=\(view.safeAreaInsets.bottom), webView=\(webView == nil ? "nil" : "present")")
+        applySafeAreaInsetToWebView(source: "viewSafeAreaInsetsDidChange")
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        applySafeAreaInsetToWebView()
+        NSLog("[SafeAreaDebug] viewDidLayoutSubviews at +\(elapsedMs())ms, bottom=\(view.safeAreaInsets.bottom), webView=\(webView == nil ? "nil" : "present")")
+        applySafeAreaInsetToWebView(source: "viewDidLayoutSubviews")
     }
 
-    private func applySafeAreaInsetToWebView() {
-        let bottomInset = view.safeAreaInsets.bottom
-        // Skip redundant calls (viewDidLayoutSubviews can fire often) —
-        // only push to the webview when the value actually changes (e.g.
-        // once on initial layout, again on rotation).
-        guard bottomInset != lastAppliedInset else { return }
-        lastAppliedInset = bottomInset
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        NSLog("[SafeAreaDebug] viewDidAppear at +\(elapsedMs())ms, bottom=\(view.safeAreaInsets.bottom), webView=\(webView == nil ? "nil" : "present")")
+        applySafeAreaInsetToWebView(source: "viewDidAppear")
+    }
 
-        let js = "document.documentElement.style.setProperty('--ios-safe-area-bottom-fallback', '\(bottomInset)px')"
-        webView?.evaluateJavaScript(js, completionHandler: nil)
+    private func applySafeAreaInsetToWebView(source: String) {
+        let bottomInset = view.safeAreaInsets.bottom
+        let elapsed = elapsedMs()
+        let js = """
+        (function() {
+          document.documentElement.style.setProperty('--ios-safe-area-bottom-fallback', '\(bottomInset)px');
+          console.log('[SafeAreaDebug] applied from \(source) at +\(elapsed)ms, bottom=\(bottomInset), readyState=' + document.readyState + ', href=' + window.location.href);
+        })();
+        """
+        webView?.evaluateJavaScript(js) { _, error in
+            if let error = error {
+                NSLog("[SafeAreaDebug] evaluateJavaScript from \(source) FAILED: \(error)")
+            }
+        }
     }
 }
