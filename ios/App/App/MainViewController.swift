@@ -1,43 +1,38 @@
 import UIKit
 import Capacitor
 
-/// Subclasses CAPBridgeViewController solely to push the real, native
-/// bottom safe-area inset (the iOS home-indicator gesture bar height) into
-/// the web content as a CSS variable.
+/// DIAGNOSTIC BUILD (round 2). Round 1 confirmed view.safeAreaInsets.bottom
+/// is correctly 34.0 from the very first call (+166ms) — so the native
+/// side isn't the problem. Critically, when a tap "fixed" the display on
+/// a real device test, NONE of viewSafeAreaInsetsDidChange/
+/// viewDidLayoutSubviews/viewDidAppear fired again — meaning whatever the
+/// tap fixed happened entirely in the web layer, without any of our
+/// native code re-running. That points away from "the CSS variable never
+/// got set in time" and toward "this might be a viewport/layout rendering
+/// glitch on cold launch, unrelated to our fix" — but that's still a
+/// hypothesis, not confirmed.
 ///
-/// Why this exists: the web-side fix (viewport-fit=cover + CSS env())
-/// looked structurally correct and was verified byte-for-byte in built
-/// artifacts, but real device tests kept showing the bottom nav clipped by
-/// the home indicator regardless — env(safe-area-inset-bottom) was
-/// resolving to 0 inside this WKWebView context. Rather than keep
-/// guessing, this reads the safe area directly from UIKit and hands it to
-/// --ios-safe-area-bottom-fallback, the CSS variable globals.css's max()
-/// formula already expects.
+/// This build tests it directly: instead of only logging whether our code
+/// ran, it logs what the *actual rendered layout* is over time — reading
+/// back --ios-safe-area-bottom-fallback, --nav-height, and .bottom-nav's
+/// real getBoundingClientRect() height, both immediately and on a timer
+/// for several seconds after launch, all via NSLog (not console.log,
+/// since we don't know if Capacitor's console-forwarding bridge is even
+/// attached yet at these early timestamps — evaluateJavaScript's own
+/// completion handler return value is used instead, which doesn't depend
+/// on that bridge at all).
 ///
-/// DIAGNOSTIC BUILD: a real device test showed the fix only taking effect
-/// after a tap triggered a second layout pass — suggesting the first
-/// application landed before the real app page finished loading. Rather
-/// than guess at a fix (retries, hooking navigation delegates, etc.)
-/// without knowing the actual sequence, this build logs the timing and
-/// context of every attempt on both sides so the next test tells us
-/// exactly what's happening instead of us speculating further:
-///   - NSLog on the Swift side: which lifecycle method fired, when
-///     (elapsed ms since view controller creation), and what
-///     safeAreaInsets.bottom actually was at that moment.
-///   - console.log from the injected JS itself: confirms whether the
-///     evaluateJavaScript call actually reached a *document* at all
-///     (vs. silently failing), and critically, what document.readyState
-///     and window.location.href were at that moment — this tells us
-///     directly whether early calls are landing on a blank/about:blank
-///     document (confirming the race theory) or the real app page.
-/// These logs show up in Appetize's Debug Logs panel same as our other
-/// device tests.
+/// If the numbers are already correct at +166ms and stay correct: the fix
+/// works, and the visible "half cut" bug at launch is a separate,
+/// unrelated rendering glitch. If the numbers are wrong at launch and
+/// only become correct later without any native re-trigger: something in
+/// the web layer (React hydration timing, a later style recalculation)
+/// is the actual cause, not the safe-area value itself.
 ///
-/// Android is untouched: MainActivity.java doesn't use this class at all,
-/// and --ios-safe-area-bottom-fallback simply stays at its 0px :root
-/// default there.
+/// Android is untouched: MainActivity.java doesn't use this class at all.
 class MainViewController: CAPBridgeViewController {
     private let startTime = Date()
+    private var pollCount = 0
 
     private func elapsedMs() -> Int {
         return Int(Date().timeIntervalSince(startTime) * 1000)
@@ -45,34 +40,56 @@ class MainViewController: CAPBridgeViewController {
 
     override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
-        NSLog("[SafeAreaDebug] viewSafeAreaInsetsDidChange at +\(elapsedMs())ms, bottom=\(view.safeAreaInsets.bottom), webView=\(webView == nil ? "nil" : "present")")
-        applySafeAreaInsetToWebView(source: "viewSafeAreaInsetsDidChange")
+        applyAndInspect(source: "viewSafeAreaInsetsDidChange")
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        NSLog("[SafeAreaDebug] viewDidLayoutSubviews at +\(elapsedMs())ms, bottom=\(view.safeAreaInsets.bottom), webView=\(webView == nil ? "nil" : "present")")
-        applySafeAreaInsetToWebView(source: "viewDidLayoutSubviews")
+        applyAndInspect(source: "viewDidLayoutSubviews")
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        NSLog("[SafeAreaDebug] viewDidAppear at +\(elapsedMs())ms, bottom=\(view.safeAreaInsets.bottom), webView=\(webView == nil ? "nil" : "present")")
-        applySafeAreaInsetToWebView(source: "viewDidAppear")
+        applyAndInspect(source: "viewDidAppear")
+        // Poll every 0.5s for 5s after the view appears, entirely without
+        // any user interaction, to see whether/when the layout settles on
+        // its own.
+        for i in 1...10 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.5) { [weak self] in
+                self?.applyAndInspect(source: "poll#\(i)")
+            }
+        }
     }
 
-    private func applySafeAreaInsetToWebView(source: String) {
+    private func applyAndInspect(source: String) {
         let bottomInset = view.safeAreaInsets.bottom
         let elapsed = elapsedMs()
         let js = """
         (function() {
           document.documentElement.style.setProperty('--ios-safe-area-bottom-fallback', '\(bottomInset)px');
-          console.log('[SafeAreaDebug] applied from \(source) at +\(elapsed)ms, bottom=\(bottomInset), readyState=' + document.readyState + ', href=' + window.location.href);
+          var nav = document.querySelector('.bottom-nav');
+          var rect = nav ? nav.getBoundingClientRect() : null;
+          var cs = nav ? getComputedStyle(nav) : null;
+          return JSON.stringify({
+            readyState: document.readyState,
+            href: window.location.href,
+            navFound: !!nav,
+            navHeightVar: getComputedStyle(document.documentElement).getPropertyValue('--nav-height'),
+            fallbackVar: getComputedStyle(document.documentElement).getPropertyValue('--ios-safe-area-bottom-fallback'),
+            navRectHeight: rect ? rect.height : null,
+            navRectBottom: rect ? rect.bottom : null,
+            navComputedHeight: cs ? cs.height : null,
+            navComputedPaddingBottom: cs ? cs.paddingBottom : null,
+            windowInnerHeight: window.innerHeight,
+            visualViewportHeight: window.visualViewport ? window.visualViewport.height : null
+          });
         })();
         """
-        webView?.evaluateJavaScript(js) { _, error in
+        webView?.evaluateJavaScript(js) { result, error in
             if let error = error {
-                NSLog("[SafeAreaDebug] evaluateJavaScript from \(source) FAILED: \(error)")
+                NSLog("[SafeAreaDebug] \(source) at +\(elapsed)ms, nativeBottom=\(bottomInset) — evaluateJavaScript FAILED: \(error)")
+            } else {
+                NSLog("[SafeAreaDebug] \(source) at +\(elapsed)ms, nativeBottom=\(bottomInset) — result: \(result ?? "nil")")
             }
         }
     }
