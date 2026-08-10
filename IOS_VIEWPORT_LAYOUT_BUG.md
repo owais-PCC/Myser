@@ -172,3 +172,18 @@ recompute correctly"? Candidate ideas we have *not* yet tried:
 - Whether Next.js static export + Capacitor's custom `WKURLSchemeHandler` loading
   path interacts with WebKit's layout/paint scheduling differently than a normal
   `https://` page load in a way that's specifically responsible for this.
+
+## Post-handoff note
+
+Antigravity implemented its corrected plan directly (commit `3901ef5`: 100dvh,
+top+bottom safe-area variables, forced synchronous reflow). One thing worth a
+quick look before further device testing: the new `.page-content { padding-top:
+calc(var(--safe-area-top) + 20px); }` rule in `globals.css` was applied to the
+correct (actually-used) class this time, but several individual pages set their
+own **inline** `paddingTop` (e.g. `src/app/dashboard/page.tsx` uses `paddingTop:
+"28px"` inline) — inline styles always win over a class rule regardless of
+specificity, so the new top safe-area padding may be silently overridden on any
+page that does this. Worth grepping `paddingTop:` across `src/app/**/page.tsx`
+and either removing the redundant inline values or reconciling them with the
+shared variable.
+
