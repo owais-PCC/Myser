@@ -315,7 +315,7 @@ export default function LogPage() {
         <div
           className="card"
           style={{
-            margin: '8px 16px 0',
+            margin: '8px 0 0',
             padding: '14px 16px',
             textAlign: 'center',
             position: 'relative',
