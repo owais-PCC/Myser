@@ -73,6 +73,7 @@ export default function LogPage() {
     return `${prefix}${formatted}`;
   };
   const [loaded, setLoaded] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('🛒');
@@ -386,56 +387,147 @@ export default function LogPage() {
 
       {/* Scrollable bottom section */}
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 'calc(var(--nav-height) + 16px)' }}>
-        {/* Category Picker */}
-        <div className="card" style={{ margin: '8px 16px 0', padding: '12px 10px' }}>
-          <div className="section-header">
-            <span className="section-title">Category</span>
-            <button
-              onClick={() => setShowCategoryModal(true)}
-              style={{
-                background: 'none',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                color: 'var(--accent)',
-                fontWeight: 700,
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                padding: '4px 8px',
-                borderRadius: '6px',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Settings size={15} color="var(--accent)" />
-              <span>Manage</span>
-            </button>
+        {/* Category Dropdown Picker */}
+        <div style={{ margin: '8px 16px 0', position: 'relative' }}>
+          <div
+            className="card"
+            onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+            style={{
+              padding: '12px 16px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              transition: 'all 0.15s ease',
+              border: showCategoryDropdown ? '2px solid var(--accent)' : '1px solid var(--border)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: selectedCat ? selectedCat.color + '18' : 'var(--bg-elevated)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {selectedCat ? (
+                  <CategoryIcon icon={selectedCat.icon} name={selectedCat.name} size={18} />
+                ) : (
+                  <span style={{ fontSize: '1rem' }}>🛒</span>
+                )}
+              </div>
+              <div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                  Category
+                </div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', marginTop: '1px' }}>
+                  {selectedCat?.name || 'Select Category'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCategoryModal(true);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  color: 'var(--accent)',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                }}
+              >
+                <Settings size={14} color="var(--accent)" />
+                <span>Manage</span>
+              </button>
+              <ChevronDown
+                size={18}
+                color="var(--text-muted)"
+                style={{
+                  transform: showCategoryDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease',
+                }}
+              />
+            </div>
           </div>
 
-          {!loaded ? (
-            <div className="category-grid">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="skeleton"
-                  style={{ height: '62px', borderRadius: '12px' }}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="category-grid">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  className={`category-chip${selectedCategory === cat.id ? ' selected' : ''}`}
-                  onClick={() => setSelectedCategory(cat.id)}
-                >
-                  <div className="category-icon-wrapper">
-                    <CategoryIcon icon={cat.icon} name={cat.name} size={14} />
+          {/* Dropdown Options Menu */}
+          {showCategoryDropdown && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                left: 0,
+                right: 0,
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: '16px',
+                boxShadow: '0 12px 36px rgba(0,0,0,0.12)',
+                zIndex: 60,
+                maxHeight: '240px',
+                overflowY: 'auto',
+                padding: '6px',
+                animation: 'slideDown 0.2s ease',
+              }}
+            >
+              {categories.map((cat) => {
+                const isSelected = selectedCategory === cat.id;
+                return (
+                  <div
+                    key={cat.id}
+                    onClick={() => {
+                      setSelectedCategory(cat.id);
+                      setShowCategoryDropdown(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      background: isSelected ? 'var(--accent-light)' : 'transparent',
+                      transition: 'background 0.15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: '#f1f5f9',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <CategoryIcon icon={cat.icon} name={cat.name} size={16} />
+                      </div>
+                      <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                        {cat.name}
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <span style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '0.9rem' }}>✓</span>
+                    )}
                   </div>
-                  <span>{cat.name}</span>
-                </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
