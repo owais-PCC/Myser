@@ -29,11 +29,13 @@
      inside Capacitor's WKWebView regardless (content loads via a custom
      WKURLSchemeHandler, a context where WebKit is known to sometimes fail
      to propagate safeAreaInsets to CSS). --ios-safe-area-bottom-fallback
-     is set to Apple's fixed 34px home-indicator constant via JS platform
-     detection (see BottomNav.tsx) as a guaranteed floor; max() picks
-     whichever value is actually larger, so this never under-pads if
-     env() does work correctly somewhere, and stays 0 (a complete no-op)
-     on Android/web where the fallback variable is never set. */
+     is set from the real native inset by
+     ios/App/App/MainViewController.swift (reads view.safeAreaInsets.bottom
+     directly via UIKit — no WebKit/CSS dependency — and pushes it in via
+     evaluateJavaScript); max() picks whichever value is actually larger,
+     so this never under-pads if env() does work correctly somewhere, and
+     stays at its 0px default (a complete no-op) on Android/web, which
+     never sets this variable at all. */
   --ios-safe-area-bottom-fallback: 0px;
   --nav-height: calc(76px + max(env(safe-area-inset-bottom, 0px), var(--ios-safe-area-bottom-fallback)));
 }
