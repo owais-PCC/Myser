@@ -207,6 +207,59 @@ html, body {
   flex: 1;
 }
 
+/* Add-expense FAB — a true floating button that sits above the nav bar,
+   right-aligned, rather than occupying a tab slot in the row. Mirrors
+   .bottom-nav's own centering (fixed, left:50%, max-width:430px) so it
+   stays aligned with the same content column on wider viewports, then
+   uses flex justify-content to push the button to the right edge with a
+   fixed inset. pointer-events:none on the wrapper (re-enabled on the
+   link itself) so the empty space around the button doesn't swallow
+   clicks meant for page content behind it. Shared by both platforms —
+   no Android/iOS branching here. */
+.nav-fab-wrapper {
+  position: fixed;
+  bottom: calc(var(--nav-height) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 20px;
+  pointer-events: none;
+  z-index: 150;
+}
+
+.nav-fab-link {
+  pointer-events: auto;
+  display: flex;
+  text-decoration: none;
+}
+
+.nav-fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.45);
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+.nav-fab-link:hover .nav-fab {
+  transform: scale(1.06);
+  box-shadow: 0 10px 28px rgba(220, 38, 38, 0.55);
+}
+
+.nav-fab-link:active .nav-fab {
+  transform: scale(0.92);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
+}
+
 .nav-item.active {
   color: var(--accent);
 }
