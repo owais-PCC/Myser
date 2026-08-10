@@ -1,33 +1,26 @@
 import UIKit
 import Capacitor
 
-/// DIAGNOSTIC BUILD (round 2). Round 1 confirmed view.safeAreaInsets.bottom
-/// is correctly 34.0 from the very first call (+166ms) — so the native
-/// side isn't the problem. Critically, when a tap "fixed" the display on
-/// a real device test, NONE of viewSafeAreaInsetsDidChange/
-/// viewDidLayoutSubviews/viewDidAppear fired again — meaning whatever the
-/// tap fixed happened entirely in the web layer, without any of our
-/// native code re-running. That points away from "the CSS variable never
-/// got set in time" and toward "this might be a viewport/layout rendering
-/// glitch on cold launch, unrelated to our fix" — but that's still a
-/// hypothesis, not confirmed.
+/// DIAGNOSTIC/FIX BUILD (round 3). A real screenshot of the "before
+/// double-tap" state showed BOTH edges wrong at once — the top header
+/// clipped under the status bar/Dynamic Island AND the bottom nav clipped
+/// — ruling out a bottom-safe-area-only explanation. Round 2's diagnostic
+/// logs showed native windowInnerHeight correctly settling to its final
+/// value within ~3s with zero interaction, while the user confirmed the
+/// visual bug never self-corrects without a tap — meaning the page's own
+/// CSS layout (100vh-based sizing, fixed positioning) isn't reactively
+/// recomputing to match the native view size. That's a known class of iOS
+/// WebKit bug: viewport-unit/fixed-position geometry can get stuck on a
+/// stale snapshot until something forces an explicit reflow — which a
+/// double-tap does as a side effect of its native zoom-reset gesture.
 ///
-/// This build tests it directly: instead of only logging whether our code
-/// ran, it logs what the *actual rendered layout* is over time — reading
-/// back --ios-safe-area-bottom-fallback, --nav-height, and .bottom-nav's
-/// real getBoundingClientRect() height, both immediately and on a timer
-/// for several seconds after launch, all via NSLog (not console.log,
-/// since we don't know if Capacitor's console-forwarding bridge is even
-/// attached yet at these early timestamps — evaluateJavaScript's own
-/// completion handler return value is used instead, which doesn't depend
-/// on that bridge at all).
-///
-/// If the numbers are already correct at +166ms and stay correct: the fix
-/// works, and the visible "half cut" bug at launch is a separate,
-/// unrelated rendering glitch. If the numbers are wrong at launch and
-/// only become correct later without any native re-trigger: something in
-/// the web layer (React hydration timing, a later style recalculation)
-/// is the actual cause, not the safe-area value itself.
+/// This build tests the fix directly: dispatches a synthetic `resize`
+/// event on every poll (see applyAndInspect) to force that recomputation
+/// proactively instead of waiting for a real tap, and logs measurements
+/// of both .app-container (top/bottom/height) and .page-title (top) —
+/// not just .bottom-nav — so we can see the whole-page picture the
+/// screenshot showed, all via NSLog since we don't know if Capacitor's
+/// console-forwarding bridge is attached yet at these early timestamps.
 ///
 /// Android is untouched: MainActivity.java doesn't use this class at all.
 class MainViewController: CAPBridgeViewController {
@@ -67,9 +60,24 @@ class MainViewController: CAPBridgeViewController {
         let js = """
         (function() {
           document.documentElement.style.setProperty('--ios-safe-area-bottom-fallback', '\(bottomInset)px');
+          // Test theory: native windowInnerHeight settles correctly within
+          // ~3s on its own (confirmed in a prior diagnostic run), but the
+          // page's own 100vh-based CSS layout doesn't reactively recompute
+          // to match without an explicit trigger — a known iOS WebKit
+          // quirk (viewport units / fixed-position geometry can get stuck
+          // on a stale snapshot until something forces a reflow, which is
+          // what a double-tap does as a side effect of its zoom-reset
+          // gesture). Dispatching a synthetic resize event here, before
+          // reading anything back, tests whether that alone is enough to
+          // force the correct recomputation without needing a real tap.
+          window.dispatchEvent(new Event('resize'));
           var nav = document.querySelector('.bottom-nav');
           var rect = nav ? nav.getBoundingClientRect() : null;
           var cs = nav ? getComputedStyle(nav) : null;
+          var container = document.querySelector('.app-container');
+          var containerRect = container ? container.getBoundingClientRect() : null;
+          var title = document.querySelector('.page-title');
+          var titleRect = title ? title.getBoundingClientRect() : null;
           return JSON.stringify({
             readyState: document.readyState,
             href: window.location.href,
@@ -80,8 +88,16 @@ class MainViewController: CAPBridgeViewController {
             navRectBottom: rect ? rect.bottom : null,
             navComputedHeight: cs ? cs.height : null,
             navComputedPaddingBottom: cs ? cs.paddingBottom : null,
+            containerFound: !!container,
+            containerRectTop: containerRect ? containerRect.top : null,
+            containerRectBottom: containerRect ? containerRect.bottom : null,
+            containerRectHeight: containerRect ? containerRect.height : null,
+            titleFound: !!title,
+            titleRectTop: titleRect ? titleRect.top : null,
             windowInnerHeight: window.innerHeight,
-            visualViewportHeight: window.visualViewport ? window.visualViewport.height : null
+            windowInnerWidth: window.innerWidth,
+            visualViewportHeight: window.visualViewport ? window.visualViewport.height : null,
+            devicePixelRatio: window.devicePixelRatio
           });
         })();
         """
