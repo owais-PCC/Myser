@@ -100,13 +100,11 @@ Build is green (`build-ios-simulator` run [31255651041](https://github.com/owais
 
 Build green (`build-ios-simulator` run [31257973365](https://github.com/owais-PCC/Myser/actions/runs/31257973365), ~3 minutes).
 
-**Remaining:**
-1. Download the fresh artifact, upload to a new Appetize app entry, and re-test both flows: Google Sign-In (should now complete instead of hanging) and email/password registration (should now complete instead of hanging).
-2. Apple Sign-In's entitlement still isn't wired — expected to still fail/hang, tracked separately, not blocking this round.
-3. **Sign in with Apple's entitlement is not yet wired up** — Capacitor's default template has no `.entitlements` file and no `CODE_SIGN_ENTITLEMENTS` build setting. Normally Xcode's "Signing & Capabilities" UI adds this automatically when you toggle on "Sign in with Apple" — since there's no Xcode here, this needs either (a) doing that one toggle whenever the project is first opened in real Xcode, or (b) carefully scripting the `.entitlements` file + `project.pbxproj` edit by hand. Deferred rather than hand-edited blind, since a malformed `.pbxproj` is easy to create and hard to debug without Xcode to validate it. Apple sign-in will not actually complete on a real build until this exists.
-4. Once the simulator link works, re-open MYS-2, click through Apple sign-in, confirm the credential bridge works, then flip MYS-2 to `done`.
+12. Auth flows (Google Sign-In + email/password registration) confirmed working after the fixes above. Follow-up device test then surfaced a **separate, unrelated bug**: on cold launch, the layout is visibly wrong — header clipped under the status bar/Dynamic Island, bottom nav showing a rendering artifact — until any tap/double-tap "snaps" it to the correct layout. Deep-dived this for several rounds (native safe-area confirmed correct via `MainViewController.swift` diagnostics, `env(safe-area-inset-*)` confirmed persistently unreliable in this WKWebView context via direct artifact inspection, native `window.innerHeight` confirmed to self-correct within ~3s with zero interaction while the *visual* layout does not) — full write-up in **[IOS_VIEWPORT_LAYOUT_BUG.md](./IOS_VIEWPORT_LAYOUT_BUG.md)**, including two candidate implementation plans from Antigravity (one partially useful — `100dvh`, forced-reflow-via-DOM-mutation are worth trying; one weaker — contradicted by our own diagnostic data, reverts an intentional native-single-source-of-truth decision).
 
-**Depends on:** none. **Unblocks:** MYS-2 verification, and all future iOS-facing tickets in `IOS_PORTING_GUIDE.md`.
+**Status: parked, not resolved.** Decided to stop iterating blind via CI+Appetize round-trips and hand this off to a developer with a real Mac + physical iOS device once one is available, per product decision — not worth further remote-debugging time right now. `MainViewController.swift`'s diagnostic logging is still in place (harmless — NSLog calls only) for whoever picks this up next.
+
+**Depends on:** none. **Unblocks:** MYS-2 verification (blocked until this is picked back up), and all future iOS-facing tickets in `IOS_PORTING_GUIDE.md`.
 
 ---
 
