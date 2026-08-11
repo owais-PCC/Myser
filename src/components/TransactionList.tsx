@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useCurrency } from '@/context/CurrencyContext';
 import CategoryIcon from '@/components/CategoryIcon';
 import TransactionDetailModal from '@/components/TransactionDetailModal';
-import { MoreVertical, X, Calendar, PencilLine } from 'lucide-react';
+import { MoreVertical, X, Calendar, PencilLine, Repeat } from 'lucide-react';
 
 interface Category {
   id: number;
@@ -133,7 +133,14 @@ export default function TransactionList({ transactions, onDelete, onUpdate }: Tr
                     <CategoryIcon icon={tx.category_icon} name={tx.category_name} size={20} color="var(--text-primary)" />
                   </div>
                   <div className="tx-info">
-                    <div className="tx-category">{tx.category_name}</div>
+                    <div className="tx-category" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span>{tx.category_name}</span>
+                      {!!tx.is_recurring && (
+                        <span title={tx.auto_repeat ? 'Recurring · auto-repeats' : 'Recurring'} style={{ display: 'inline-flex', color: 'var(--text-muted)' }}>
+                          <Repeat size={12} strokeWidth={2.5} />
+                        </span>
+                      )}
+                    </div>
                     {tx.note && <div className="tx-note">{tx.note}</div>}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

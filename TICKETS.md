@@ -162,18 +162,18 @@ Full in-app preview modal (iframe on web, styled mockup on native), Share/Save a
 
 ## MYS-8 — Income tracking
 
-**Status:** scoped, ready to build
+**Status:** done
 
-**Current state:** `transactions`/`categories` tables have no `type` column — schema and every query (`getSpendingByCategory`, dashboard totals, etc.) assume expense-only. No income UI exists anywhere.
+**Built as scoped:**
+1. Migration: `type TEXT NOT NULL DEFAULT 'expense'` added to both `categories` and `transactions` (`src/lib/db.ts`), same try/catch `ALTER TABLE` pattern as the existing `document_id`/`comment` migrations. `getCategories`/`getSpendingByCategory`/`getTransactions`/`getTransactionsByMonth`/`getMonthlyTotals`/`getDailySpending` all updated to explicitly filter `type = 'expense'` (defaulted, so all existing call sites are unaffected) — this was the critical correctness step, otherwise income would have silently inflated every existing spending total.
+2. Starter income categories seeded (Salary, Business, Freelance, Investments, Gifts & Refunds, Other Income), ids 101-106 to stay clear of expense category ids and future user-created ones.
+3. `Expense | Income` segmented toggle added to `AddExpenseModal.tsx` (the actual live add-entry surface — the old `/add` page route is no longer linked anywhere in the app, confirmed via grep before choosing where to build this). Switching swaps the category list and toggles title/save-button/toast text; budget-reallocation flow correctly skipped for income (income doesn't draw against a category budget).
+4. New `src/app/income/page.tsx`: month picker, total-income hero card, income-by-source breakdown (new `getIncomeByCategory` query), recent-entries list with delete, and a simple "Add Source" flow for custom income categories. Linked from `BottomNav.tsx` in **both** budget and tracker mode.
+5. Dashboard integration still deferred, as agreed.
 
-**Scope (finalized in discussion):**
-1. Migration: `ALTER TABLE categories ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'` and `ALTER TABLE transactions ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'` — reuses the existing categories/transactions tables and their query patterns rather than new tables.
-2. Seed starter income categories (Salary, Business, Freelance, Investments, Gifts & Refunds, Other Income) — user can customize like expense categories.
-3. `/add`: `Expense | Income` segmented toggle at top; switching swaps category list + terminology (e.g. "What did you spend on?" → "Where did this come from?").
-4. **New dedicated `/income` page**, linked from the bottom nav in **both** budget and tracker mode (not gated to budget mode only, per discussion) — full income history/detail lives here.
-5. Dashboard integration (e.g. a Net Cash Flow card) explicitly **deferred** — to be scoped separately once the base feature is live.
+New Firestore fields (`type`, `is_recurring`, etc.) are synced for cross-device parity (`firestore-sync.ts` signatures extended) — not skipped.
 
-**Depends on:** none, but touches the same `db.ts`/schema surface as MYS-11 (recurring) — sequence them, don't run in parallel.
+`tsc --noEmit` and `npm run build` both clean; `/income` confirmed as a built static route.
 
 ---
 
@@ -191,17 +191,17 @@ Full in-app preview modal (iframe on web, styled mockup on native), Share/Save a
 
 ## MYS-11 — Recurring expenses (tag + optional auto-repeat)
 
-**Status:** scoped, ready to build
+**Status:** done
 
-**Current state:** no recurrence concept anywhere in the schema or UI.
+**Built as scoped:**
+1. `is_recurring INTEGER NOT NULL DEFAULT 0` column added to `transactions`. Checkbox in `AddExpenseModal.tsx`, shown only for expense entries (per literal scope). `updateTransaction` treats `is_recurring` as optional and preserves the existing stored value when a caller doesn't pass it — avoids a real data-loss bug where editing a transaction through a form that doesn't know about the field would have silently cleared it.
+2. Optional auto-repeat sub-checkbox (only shown once Recurring is checked): `auto_repeat`, `recurrence_interval` ('monthly' only, stored as text so weekly/yearly can be added later without a migration), `next_occurrence_date` columns. `addMonths()` helper computes the next date.
+3. **Catch-up engine**: `runRecurringCatchUp()` in `db.ts` — only the "anchor" transaction of a series (`auto_repeat = 1`) carries `next_occurrence_date`; spawned occurrences are inserted with `auto_repeat = 0` so they don't themselves keep spawning (would otherwise multiply every run). Capped at 24 catch-up occurrences per series as a runaway guard. Wired into `AuthGate.tsx` via a `useRef`-guarded effect that runs once per session right as real app content becomes reachable.
+4. **Analytics**: "Exclude recurring" toggle added above the charts in `/analytics`; `getSpendingByCategory`/`getDailySpending`/`getMonthlyTotals` all accept an `excludeRecurring` option now. Dashboard/Budget untouched, as agreed.
+5. Edit/delete: kept to v1 scope (single-instance only, no series-wide edit UI).
+6. Small extra: added a recurring indicator (repeat icon) next to the category name in `TransactionList.tsx` (used by History) so recurring transactions are visually distinguishable there too.
 
-**Scope (finalized in discussion) — two tiers:**
-1. **Plain "Recurring" tag**: `is_recurring INTEGER NOT NULL DEFAULT 0` column on `transactions` (same `ALTER TABLE` migration pattern as `document_id`/`comment`). Checkbox on `/add`. No automation — purely a label for filtering.
-2. **Optional "Auto-repeat"**: only selectable when Recurring is on. Additional columns: `auto_repeat INTEGER NOT NULL DEFAULT 0`, `recurrence_interval TEXT` (monthly only for v1 — weekly/yearly deferred), `next_occurrence_date TEXT`. **Mechanism: catch-up on app open**, not a true background scheduler (no server/native background task exists or is in scope) — on launch, check all `auto_repeat` transactions and insert any occurrences that came due since the app was last opened, advancing `next_occurrence_date` each time. Fully offline-capable; if the app isn't opened for a while, missed occurrences post in a batch next launch rather than instantly.
-3. **Analytics integration**: add an "Exclude recurring" toggle on `/analytics` that recomputes totals/averages/charts with `is_recurring = 1` transactions filtered out — this is the actual motivating use case (large recurring expenses inflate daily-average calculations). Budget-vs-spent totals elsewhere (Dashboard, Budget page) are **unaffected** — recurring expenses still count as real spending there; only Analytics gets the exclude option.
-4. Edit/delete semantics for v1: kept simple — editing or deleting an auto-repeat transaction only affects that single posted instance, not the underlying schedule/future occurrences. (Editing the recurrence schedule itself, or bulk-editing a series, is out of scope for v1.)
-
-**Depends on:** none, but touches the same `db.ts`/schema surface as MYS-8 — sequence them, don't run in parallel.
+`tsc --noEmit` and `npm run build` both clean.
 
 ---
 

@@ -6,11 +6,14 @@ import { usePathname } from 'next/navigation';
 import { useAppMode } from '@/context/AppModeContext';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import ShareReceiptModal from '@/components/ShareReceiptModal';
-import { LayoutGrid, Plus, History, Wallet, BarChart3, FolderOpen, Receipt, PencilLine } from 'lucide-react';
+import { LayoutGrid, Plus, History, Wallet, BarChart3, FolderOpen, Receipt, PencilLine, Landmark } from 'lucide-react';
 
+// Income gets its own nav item in both modes (not gated to budget mode) —
+// see MYS-8 in TICKETS.md.
 const BUDGET_ITEMS = [
   { href: '/dashboard', label: 'Dash', icon: LayoutGrid },
   { href: '/history', label: 'History', icon: History },
+  { href: '/income', label: 'Income', icon: Landmark },
   { href: '/budget', label: 'Budget', icon: Wallet },
   { href: '/analytics', label: 'Stats', icon: BarChart3 },
 ];
@@ -18,6 +21,7 @@ const BUDGET_ITEMS = [
 const TRACKER_ITEMS = [
   { href: '/dashboard', label: 'Dash', icon: LayoutGrid },
   { href: '/history', label: 'History', icon: History },
+  { href: '/income', label: 'Income', icon: Landmark },
   { href: '/vault', label: 'Receipts', icon: FolderOpen },
   { href: '/analytics', label: 'Stats', icon: BarChart3 },
 ];

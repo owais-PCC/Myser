@@ -126,7 +126,9 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
 
     const expenseAmount = parseFloat(amount);
 
-    if (mode === 'budget') {
+    // Budget reallocation only applies to expenses — income doesn't draw
+    // against a category budget.
+    if (mode === 'budget' && entryType === 'expense') {
       const [catSpending, totalBudget] = await Promise.all([
         getSpendingByCategory(monthStr),
         getMonthlyBudget(monthStr),
@@ -169,16 +171,21 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
         amount: expenseAmount,
         date,
         note: note.trim() || undefined,
+        type: entryType,
+        is_recurring: entryType === 'expense' ? isRecurring : undefined,
+        auto_repeat: entryType === 'expense' ? autoRepeat : undefined,
       });
       if (user && isSyncEnabled()) uploadAllData(user.uid).catch(() => {});
 
       setAmount('');
       setNote('');
+      setIsRecurring(false);
+      setAutoRepeat(false);
       const catName = categories.find((c) => c.id === categoryId)?.name;
       const detailText = `${catName ? catName + ' · ' : ''}${fmt(expenseAmount)}`;
-      showToast('Expense Saved', 'success', detailText);
+      showToast(entryType === 'income' ? 'Income Saved' : 'Expense Saved', 'success', detailText);
 
-      window.dispatchEvent(new Event('expense-saved'));
+      window.dispatchEvent(new Event(entryType === 'income' ? 'income-saved' : 'expense-saved'));
       setTimeout(() => {
         onClose();
       }, 300);
@@ -215,7 +222,7 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
     }
     setAddingCategory(true);
     try {
-      await addCategory({ name: newCatName.trim(), color: newCatColor, icon: newCatIcon });
+      await addCategory({ name: newCatName.trim(), color: newCatColor, icon: newCatIcon, type: entryType });
       showToast('Category added!', 'success');
       setShowCategoryModal(false);
       setNewCatName('');
@@ -575,6 +582,44 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
           </div>
         </div>
 
+        {/* Recurring toggle — expense only, per MYS-11 scope */}
+        {entryType === 'expense' && (
+          <div className="card" style={{ padding: '12px 16px', marginBottom: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>Recurring expense</span>
+              <input
+                type="checkbox"
+                checked={isRecurring}
+                onChange={(e) => {
+                  setIsRecurring(e.target.checked);
+                  if (!e.target.checked) setAutoRepeat(false);
+                }}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--accent)', cursor: 'pointer' }}
+              />
+            </label>
+
+            {isRecurring && (
+              <>
+                <div style={{ height: '1px', background: 'var(--border)', margin: '10px 0' }} />
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+                  <div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Auto-repeat monthly</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Automatically logs this again next month
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={autoRepeat}
+                    onChange={(e) => setAutoRepeat(e.target.checked)}
+                    style={{ width: '20px', height: '20px', accentColor: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }}
+                  />
+                </label>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Keypad */}
         <div className="card" style={{ padding: '10px', marginBottom: '12px' }}>
           <div className="keypad">
@@ -598,7 +643,7 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
             disabled={saving || !amount || parseFloat(amount) <= 0}
             style={{ width: '100%', padding: '14px', borderRadius: '14px' }}
           >
-            {saving ? 'Saving...' : `Save ${amount ? fmt(parseFloat(amount)) : 'Expense'}`}
+            {saving ? 'Saving...' : `Save ${amount ? fmt(parseFloat(amount)) : (entryType === 'income' ? 'Income' : 'Expense')}`}
           </button>
         </div>
 

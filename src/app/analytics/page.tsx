@@ -61,6 +61,12 @@ export default function AnalyticsPage() {
   const [budget, setBudget] = useState<number | null>(null);
   const [activeSlice, setActiveSlice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  // Excludes recurring-tagged expenses from every total/average/chart below
+  // (not from Dashboard or Budget, which intentionally still count them as
+  // real spending) — large recurring expenses otherwise inflate the daily
+  // average in a way that doesn't reflect discretionary spending. See
+  // MYS-11 in TICKETS.md.
+  const [excludeRecurring, setExcludeRecurring] = useState(false);
 
   function getPrevMonth(m: string) {
     const [y, mo] = m.split('-').map(Number);
@@ -92,13 +98,13 @@ export default function AnalyticsPage() {
     const prev = getPrevMonth(month);
 
     const [cats, daily, trend, budgetVal] = await Promise.all([
-      getSpendingByCategory(month),
-      getDailySpending(month),
-      getMonthlyTotals(last6),
+      getSpendingByCategory(month, { excludeRecurring }),
+      getDailySpending(month, { excludeRecurring }),
+      getMonthlyTotals(last6, { excludeRecurring }),
       getMonthlyBudget(month),
     ]);
 
-    const [prevData] = await getMonthlyTotals([prev]);
+    const [prevData] = await getMonthlyTotals([prev], { excludeRecurring });
 
     setCatData(cats);
     setDailyData(daily);
@@ -112,7 +118,7 @@ export default function AnalyticsPage() {
     setBudget(budgetVal);
     setActiveSlice(null);
     setLoading(false);
-  }, [month]);
+  }, [month, excludeRecurring]);
 
   useEffect(() => {
     loadData();
@@ -217,6 +223,28 @@ export default function AnalyticsPage() {
           <FileDown size={20} />
         </button>
       </div>
+
+      {/* Exclude Recurring toggle */}
+      <label
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px', marginBottom: '16px', cursor: 'pointer',
+          background: 'var(--bg-card)', borderRadius: '14px', border: '1px solid var(--border)',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Exclude recurring expenses</div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            See real day-to-day spending without large recurring bills skewing it
+          </div>
+        </div>
+        <input
+          type="checkbox"
+          checked={excludeRecurring}
+          onChange={(e) => setExcludeRecurring(e.target.checked)}
+          style={{ width: '20px', height: '20px', accentColor: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }}
+        />
+      </label>
 
       {loading ? (
         <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
