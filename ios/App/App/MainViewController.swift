@@ -37,6 +37,18 @@ class MainViewController: CAPBridgeViewController {
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
     }
 
+    // Explicit registration for TextRecognizerPlugin.swift (Vision-framework
+    // OCR), mirroring Android's explicit registerPlugin(TextRecognizerPlugin.class)
+    // call in MainActivity.java. capacitorDidLoad() is documented as running
+    // "before the webview has been added to the view hierarchy" — i.e.
+    // before any JS could possibly call into a plugin, so this is always
+    // registered in time. Doesn't rely on Capacitor's CocoaPods-based plugin
+    // auto-discovery, which only applies to plugins shipped as separate
+    // pods, not classes living directly in this app target.
+    override func capacitorDidLoad() {
+        bridge?.registerPluginType(TextRecognizerPlugin.self)
+    }
+
     override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
         applyAndInspect(source: "viewSafeAreaInsetsDidChange")
