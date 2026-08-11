@@ -40,6 +40,18 @@ export const DEFAULT_CATEGORIES = [
   { id: 10, name: 'Other', color: '#B2BEC3', icon: '📦' },
 ];
 
+// IDs start at 101 to stay clear of both the fixed expense category ids
+// above (1-10) and any user-created categories (AUTOINCREMENT, so those
+// start at 11+).
+export const DEFAULT_INCOME_CATEGORIES = [
+  { id: 101, name: 'Salary', color: '#047857', icon: '💼' },
+  { id: 102, name: 'Business', color: '#00B894', icon: '🏪' },
+  { id: 103, name: 'Freelance', color: '#4ECDC4', icon: '💻' },
+  { id: 104, name: 'Investments', color: '#FDCB6E', icon: '📈' },
+  { id: 105, name: 'Gifts & Refunds', color: '#FD79A8', icon: '🎁' },
+  { id: 106, name: 'Other Income', color: '#74B9FF', icon: '➕' },
+];
+
 async function getSql(): Promise<SqlJsStatic> {
   if (!SQL) {
     SQL = await initSqlJs({
@@ -176,6 +188,25 @@ function initSchema(database: Database) {
 
   try { database.run('ALTER TABLE transactions ADD COLUMN document_id INTEGER'); } catch { /* exists */ }
   try { database.run('ALTER TABLE transactions ADD COLUMN comment TEXT'); } catch { /* exists */ }
+
+  // Income tracking (MYS-8) + recurring expenses (MYS-11)
+  try { database.run("ALTER TABLE categories ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'"); } catch { /* exists */ }
+  try { database.run("ALTER TABLE transactions ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'"); } catch { /* exists */ }
+  try { database.run('ALTER TABLE transactions ADD COLUMN is_recurring INTEGER NOT NULL DEFAULT 0'); } catch { /* exists */ }
+  try { database.run('ALTER TABLE transactions ADD COLUMN auto_repeat INTEGER NOT NULL DEFAULT 0'); } catch { /* exists */ }
+  try { database.run('ALTER TABLE transactions ADD COLUMN recurrence_interval TEXT'); } catch { /* exists */ }
+  try { database.run('ALTER TABLE transactions ADD COLUMN next_occurrence_date TEXT'); } catch { /* exists */ }
+
+  // Seed starter income categories once — covers both brand-new installs
+  // (this runs as part of initSchema before the explicit seedCategories()
+  // call in getDb()) and existing installs upgrading into this feature.
+  try {
+    const countRes = database.exec("SELECT COUNT(*) FROM categories WHERE type = 'income'");
+    const count = countRes.length ? (countRes[0].values[0][0] as number) : 0;
+    if (count === 0) seedIncomeCategories(database);
+  } catch {
+    // ignore
+  }
 }
 
 function seedCategories(database: Database) {
@@ -183,6 +214,16 @@ function seedCategories(database: Database) {
     'INSERT INTO categories (id, name, color, icon) VALUES (?, ?, ?, ?)'
   );
   for (const cat of DEFAULT_CATEGORIES) {
+    stmt.run([cat.id, cat.name, cat.color, cat.icon]);
+  }
+  stmt.free();
+}
+
+function seedIncomeCategories(database: Database) {
+  const stmt = database.prepare(
+    "INSERT INTO categories (id, name, color, icon, type) VALUES (?, ?, ?, ?, 'income')"
+  );
+  for (const cat of DEFAULT_INCOME_CATEGORIES) {
     stmt.run([cat.id, cat.name, cat.color, cat.icon]);
   }
   stmt.free();
@@ -205,9 +246,9 @@ export function persistDb(database: Database) {
 }
 
 // ---- CATEGORIES ----
-export async function getCategories() {
+export async function getCategories(type: 'expense' | 'income' = 'expense') {
   const database = await getDb();
-  const results = database.exec('SELECT id, name, color, icon FROM categories ORDER BY sort_order, id');
+  const results = database.exec(`SELECT id, name, color, icon FROM categories WHERE type = '${type}' ORDER BY sort_order, id`);
   if (!results.length) return [];
   const [{ columns, values }] = results;
   return values.map((row) =>
@@ -220,21 +261,22 @@ export async function getCategories() {
   );
 }
 
-export async function addCategory(data: { name: string; color: string; icon: string }) {
+export async function addCategory(data: { name: string; color: string; icon: string; type?: 'expense' | 'income' }) {
   const database = await getDb();
-  const maxRes = database.exec('SELECT COALESCE(MAX(sort_order), -1) FROM categories');
+  const type = data.type || 'expense';
+  const maxRes = database.exec(`SELECT COALESCE(MAX(sort_order), -1) FROM categories WHERE type = '${type}'`);
   const maxOrder = maxRes.length ? (maxRes[0].values[0][0] as number) : -1;
   const sortOrder = maxOrder + 1;
   database.run(
-    'INSERT INTO categories (name, color, icon, sort_order) VALUES (?, ?, ?, ?)',
-    [data.name, data.color, data.icon, sortOrder]
+    'INSERT INTO categories (name, color, icon, sort_order, type) VALUES (?, ?, ?, ?, ?)',
+    [data.name, data.color, data.icon, sortOrder, type]
   );
   persistDb(database);
   const uid = getUserId();
   if (uid) {
     const idRes = database.exec('SELECT last_insert_rowid()');
     const id = idRes[0].values[0][0] as number;
-    syncCategory(uid, id, { ...data, sort_order: sortOrder });
+    syncCategory(uid, id, { name: data.name, color: data.color, icon: data.icon, sort_order: sortOrder, type });
   }
 }
 
@@ -259,6 +301,15 @@ export async function reorderCategories(orderedIds: number[]) {
 }
 
 // ---- TRANSACTIONS ----
+
+// v1 of auto-repeat only supports monthly, but the interval is stored as
+// text so weekly/yearly can be added later without another migration.
+function addMonths(dateStr: string, months: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1 + months, d);
+  return date.toISOString().slice(0, 10);
+}
+
 export async function addTransaction(data: {
   category_id: number;
   amount: number;
@@ -266,11 +317,21 @@ export async function addTransaction(data: {
   note?: string;
   document_id?: number;
   comment?: string;
+  type?: 'expense' | 'income';
+  is_recurring?: boolean;
+  auto_repeat?: boolean;
+  recurrence_interval?: 'monthly';
 }) {
   const database = await getDb();
+  const type = data.type || 'expense';
+  const isRecurring = data.is_recurring ? 1 : 0;
+  const autoRepeat = data.auto_repeat ? 1 : 0;
+  const interval = data.auto_repeat ? (data.recurrence_interval || 'monthly') : null;
+  const nextOccurrence = data.auto_repeat ? addMonths(data.date, 1) : null;
+
   database.run(
-    'INSERT INTO transactions (category_id, amount, date, note, document_id, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime("now"))',
-    [data.category_id, data.amount, data.date, data.note || null, data.document_id || null, data.comment || null]
+    'INSERT INTO transactions (category_id, amount, date, note, document_id, comment, type, is_recurring, auto_repeat, recurrence_interval, next_occurrence_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"))',
+    [data.category_id, data.amount, data.date, data.note || null, data.document_id || null, data.comment || null, type, isRecurring, autoRepeat, interval, nextOccurrence]
   );
   const idRes = database.exec('SELECT last_insert_rowid()');
   const id = idRes[0].values[0][0] as number;
@@ -278,19 +339,74 @@ export async function addTransaction(data: {
   const uid = getUserId();
   if (uid) {
     const created_at = new Date().toISOString();
-    syncTransaction(uid, id, { category_id: data.category_id, amount: data.amount, date: data.date, note: data.note || null, created_at, document_id: data.document_id || null, comment: data.comment || null });
+    syncTransaction(uid, id, {
+      category_id: data.category_id, amount: data.amount, date: data.date, note: data.note || null, created_at,
+      document_id: data.document_id || null, comment: data.comment || null, type,
+      is_recurring: !!data.is_recurring, auto_repeat: !!data.auto_repeat, recurrence_interval: interval, next_occurrence_date: nextOccurrence,
+    });
   }
 }
 
-export async function getTransactions(limit = 50, month?: string) {
+// Catches up any auto-repeat transactions whose next occurrence date has
+// passed. No server/background scheduler exists (or is in scope for v1),
+// so this runs once on app open instead — see MYS-11 in TICKETS.md. Only
+// the "anchor" transaction of each series (auto_repeat = 1) carries
+// next_occurrence_date; spawned occurrences are inserted with
+// auto_repeat = 0 so they don't themselves keep spawning more (which would
+// otherwise multiply every catch-up run).
+export async function runRecurringCatchUp(): Promise<number> {
+  const database = await getDb();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const due = database.exec(
+    `SELECT id, category_id, amount, note, document_id, comment, type
+     FROM transactions
+     WHERE auto_repeat = 1 AND next_occurrence_date IS NOT NULL AND next_occurrence_date <= '${todayStr}'`
+  );
+  if (!due.length) return 0;
+
+  let posted = 0;
+  const { columns, values } = due[0];
+  for (const row of values) {
+    const rec = Object.fromEntries(columns.map((c, i) => [c, row[i]])) as {
+      id: number; category_id: number; amount: number; note: string | null;
+      document_id: number | null; comment: string | null; type: string;
+    };
+
+    // Re-read the anchor's current next_occurrence_date fresh each loop —
+    // guards against staleness if this ever runs concurrently.
+    const anchorRes = database.exec(`SELECT next_occurrence_date FROM transactions WHERE id = ${rec.id}`);
+    if (!anchorRes.length || !anchorRes[0].values.length) continue;
+    let occurrenceDate = anchorRes[0].values[0][0] as string;
+
+    // Cap catch-up per series so a very long-unopened app doesn't try to
+    // backfill an unbounded number of months in one go.
+    let guard = 0;
+    while (occurrenceDate <= todayStr && guard < 24) {
+      database.run(
+        'INSERT INTO transactions (category_id, amount, date, note, document_id, comment, type, is_recurring, auto_repeat, recurrence_interval, next_occurrence_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, NULL, NULL, datetime("now"))',
+        [rec.category_id, rec.amount, occurrenceDate, rec.note, rec.document_id, rec.comment, rec.type]
+      );
+      posted++;
+      occurrenceDate = addMonths(occurrenceDate, 1);
+      guard++;
+    }
+    database.run('UPDATE transactions SET next_occurrence_date = ? WHERE id = ?', [occurrenceDate, rec.id]);
+  }
+
+  if (posted > 0) persistDb(database);
+  return posted;
+}
+
+export async function getTransactions(limit = 50, month?: string, type: 'expense' | 'income' = 'expense') {
   const database = await getDb();
   const monthFilter = month ? `AND t.date LIKE '${month}%'` : '';
   const results = database.exec(`
     SELECT t.id, t.category_id, t.amount, t.date, t.note, t.created_at, t.document_id, t.comment,
+           t.type, t.is_recurring, t.auto_repeat,
            c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM transactions t
     JOIN categories c ON t.category_id = c.id
-    WHERE 1=1 ${monthFilter}
+    WHERE t.type = '${type}' ${monthFilter}
     ORDER BY t.date DESC, t.created_at DESC
     LIMIT ${limit}
   `);
@@ -301,14 +417,20 @@ export async function getTransactions(limit = 50, month?: string) {
   ) as unknown as Transaction[];
 }
 
-export async function getTransactionsByMonth(month: string) {
+export async function getTransactionsByMonth(
+  month: string,
+  options: { type?: 'expense' | 'income'; excludeRecurring?: boolean } = {}
+) {
+  const { type = 'expense', excludeRecurring = false } = options;
   const database = await getDb();
+  const recurringFilter = excludeRecurring ? 'AND t.is_recurring = 0' : '';
   const results = database.exec(`
     SELECT t.id, t.category_id, t.amount, t.date, t.note, t.created_at, t.document_id, t.comment,
+           t.type, t.is_recurring, t.auto_repeat,
            c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM transactions t
     JOIN categories c ON t.category_id = c.id
-    WHERE substr(t.date, 1, 7) = '${month}'
+    WHERE substr(t.date, 1, 7) = '${month}' AND t.type = '${type}' ${recurringFilter}
     ORDER BY t.date DESC, t.created_at DESC
   `);
   if (!results.length) return [];
@@ -332,19 +454,32 @@ export async function updateTransaction(id: number, data: {
   date: string;
   note?: string;
   comment?: string | null;
+  is_recurring?: boolean;
 }) {
   const database = await getDb();
+  // is_recurring is optional here — if the caller doesn't know about it
+  // (e.g. an older edit form), preserve whatever is already stored rather
+  // than silently clearing the flag.
+  let isRecurring: number;
+  if (data.is_recurring !== undefined) {
+    isRecurring = data.is_recurring ? 1 : 0;
+  } else {
+    const existing = database.exec(`SELECT is_recurring FROM transactions WHERE id = ${id}`);
+    isRecurring = existing.length && existing[0].values.length ? (existing[0].values[0][0] as number) : 0;
+  }
+  // Editing only ever affects this single row, per MYS-11's v1 scope — if
+  // this happens to be an auto-repeat anchor, its schedule/
+  // next_occurrence_date is left untouched so the series keeps running.
   database.run(
-    'UPDATE transactions SET category_id = ?, amount = ?, date = ?, note = ?, comment = ? WHERE id = ?',
-    [data.category_id, data.amount, data.date, data.note || null, data.comment || null, id]
+    'UPDATE transactions SET category_id = ?, amount = ?, date = ?, note = ?, comment = ?, is_recurring = ? WHERE id = ?',
+    [data.category_id, data.amount, data.date, data.note || null, data.comment || null, isRecurring, id]
   );
   persistDb(database);
   const uid = getUserId();
   if (uid) {
-    const txRes = database.exec(`SELECT created_at, document_id FROM transactions WHERE id = ${id}`);
+    const txRes = database.exec(`SELECT created_at, document_id, type, auto_repeat, recurrence_interval, next_occurrence_date FROM transactions WHERE id = ${id}`);
     if (txRes.length && txRes[0].values.length) {
-      const created_at = txRes[0].values[0][0] as string;
-      const document_id = txRes[0].values[0][1] as number | null;
+      const [created_at, document_id, type, auto_repeat, recurrence_interval, next_occurrence_date] = txRes[0].values[0] as [string, number | null, string, number, string | null, string | null];
       syncTransaction(uid, id, {
         category_id: data.category_id,
         amount: data.amount,
@@ -352,7 +487,12 @@ export async function updateTransaction(id: number, data: {
         note: data.note || null,
         created_at,
         document_id,
-        comment: data.comment || null
+        comment: data.comment || null,
+        type,
+        is_recurring: !!isRecurring,
+        auto_repeat: !!auto_repeat,
+        recurrence_interval,
+        next_occurrence_date,
       });
     }
   }
@@ -399,15 +539,17 @@ export async function upsertBudget(category_id: number, month: string, amount: n
   if (uid) syncBudget(uid, budgetId, { category_id, month, amount });
 }
 
-export async function getSpendingByCategory(month: string) {
+export async function getSpendingByCategory(month: string, options: { excludeRecurring?: boolean } = {}) {
   const database = await getDb();
+  const recurringFilter = options.excludeRecurring ? 'AND t.is_recurring = 0' : '';
   const results = database.exec(`
     SELECT c.id, c.name, c.color, c.icon,
            COALESCE(SUM(t.amount), 0) as spent,
            COALESCE(b.amount, 0) as budget
     FROM categories c
-    LEFT JOIN transactions t ON t.category_id = c.id AND substr(t.date, 1, 7) = '${month}'
+    LEFT JOIN transactions t ON t.category_id = c.id AND substr(t.date, 1, 7) = '${month}' AND t.type = 'expense' ${recurringFilter}
     LEFT JOIN budgets b ON b.category_id = c.id AND b.month = '${month}'
+    WHERE c.type = 'expense'
     GROUP BY c.id
     ORDER BY c.id
   `);
@@ -416,6 +558,24 @@ export async function getSpendingByCategory(month: string) {
   return values.map((row) =>
     Object.fromEntries(columns.map((col, i) => [col, row[i]]))
   ) as unknown as CategorySpending[];
+}
+
+export async function getIncomeByCategory(month: string): Promise<{ id: number; name: string; color: string; icon: string; received: number }[]> {
+  const database = await getDb();
+  const results = database.exec(`
+    SELECT c.id, c.name, c.color, c.icon,
+           COALESCE(SUM(t.amount), 0) as received
+    FROM categories c
+    LEFT JOIN transactions t ON t.category_id = c.id AND substr(t.date, 1, 7) = '${month}' AND t.type = 'income'
+    WHERE c.type = 'income'
+    GROUP BY c.id
+    ORDER BY c.id
+  `);
+  if (!results.length) return [];
+  const [{ columns, values }] = results;
+  return values.map((row) =>
+    Object.fromEntries(columns.map((col, i) => [col, row[i]]))
+  ) as unknown as { id: number; name: string; color: string; icon: string; received: number }[];
 }
 
 export async function getMonthlyBudget(month: string): Promise<number | null> {
@@ -667,27 +827,29 @@ export async function updateDocumentFileName(docId: number, newName: string) {
 }
 
 // ---- ANALYTICS ----
-export async function getMonthlyTotals(months: string[]): Promise<{ month: string; total: number }[]> {
+export async function getMonthlyTotals(months: string[], options: { excludeRecurring?: boolean } = {}): Promise<{ month: string; total: number }[]> {
   const database = await getDb();
+  const recurringFilter = options.excludeRecurring ? 'AND is_recurring = 0' : '';
   const results: { month: string; total: number }[] = [];
   for (const m of months) {
     const res = database.exec(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE substr(date, 1, 7) = '${m}'`
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE substr(date, 1, 7) = '${m}' AND type = 'expense' ${recurringFilter}`
     );
     results.push({ month: m, total: res.length ? (res[0].values[0][0] as number) : 0 });
   }
   return results;
 }
 
-export async function getDailySpending(month: string): Promise<{ day: number; total: number }[]> {
+export async function getDailySpending(month: string, options: { excludeRecurring?: boolean } = {}): Promise<{ day: number; total: number }[]> {
   const database = await getDb();
+  const recurringFilter = options.excludeRecurring ? 'AND is_recurring = 0' : '';
   const [y, m] = month.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
   const results: { day: number; total: number }[] = [];
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${month}-${String(d).padStart(2, '0')}`;
     const res = database.exec(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE date = '${dateStr}'`
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE date = '${dateStr}' AND type = 'expense' ${recurringFilter}`
     );
     results.push({ day: d, total: res.length ? (res[0].values[0][0] as number) : 0 });
   }
@@ -707,6 +869,9 @@ export interface Transaction {
   category_icon: string;
   document_id: number | null;
   comment: string | null;
+  type: 'expense' | 'income';
+  is_recurring: number;
+  auto_repeat: number;
 }
 
 export interface Budget {

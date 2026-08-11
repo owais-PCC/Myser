@@ -10,6 +10,7 @@ import { DrawerProvider } from '@/context/DrawerContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import AuthGate from '@/components/AuthGate';
 import ShareHandler from '@/components/ShareHandler';
+import Sidebar from '@/components/Sidebar';
 
 import { Inter } from 'next/font/google';
 
@@ -43,6 +44,7 @@ export default function RootLayout({
                 <DrawerProvider>
                   <NotificationProvider>
                     <AuthGate>
+                      <Sidebar />
                       <div className="app-container">
                         {children}
                         <BottomNav />

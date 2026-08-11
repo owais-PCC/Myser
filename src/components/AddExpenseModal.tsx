@@ -37,12 +37,15 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
   const { currency, fmt } = useCurrency();
   const { toast, show: showToast, hide: hideToast } = useToast();
 
+  const [entryType, setEntryType] = useState<'expense' | 'income'>('expense');
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [autoRepeat, setAutoRepeat] = useState(false);
 
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
@@ -71,18 +74,26 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
   const COLOR_OPTIONS = ['#047857', '#4ECDC4', '#A29BFE', '#FD79A8', '#55EFC4', '#FDCB6E', '#81ECEC', '#74B9FF', '#FAB1A0', '#E17055', '#00B894', '#6C5CE7'];
 
   const loadCategories = useCallback(async () => {
-    const cats = await getCategories();
+    const cats = await getCategories(entryType);
     setCategories(cats);
-    if (cats.length > 0 && selectedCategory === null) {
-      setSelectedCategory(cats[0].id);
-    }
-  }, [selectedCategory]);
+    setSelectedCategory(cats.length > 0 ? cats[0].id : null);
+  }, [entryType]);
 
   useEffect(() => {
     if (isOpen) {
       loadCategories();
     }
   }, [isOpen, loadCategories]);
+
+  // Reset entry-type-specific state whenever the modal closes, so the next
+  // open starts fresh rather than remembering the last session's toggle.
+  useEffect(() => {
+    if (!isOpen) {
+      setEntryType('expense');
+      setIsRecurring(false);
+      setAutoRepeat(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -276,7 +287,7 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
-            Log Expense
+            {entryType === 'income' ? 'Log Income' : 'Log Expense'}
           </div>
           <button
             onClick={onClose}
@@ -295,6 +306,31 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
           >
             <X size={16} />
           </button>
+        </div>
+
+        {/* Expense / Income Toggle */}
+        <div style={{ display: 'flex', background: 'var(--bg-elevated)', borderRadius: '12px', padding: '4px', marginBottom: '12px' }}>
+          {(['expense', 'income'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setEntryType(t)}
+              style={{
+                flex: 1,
+                padding: '9px 0',
+                borderRadius: '8px',
+                border: 'none',
+                background: entryType === t ? 'var(--bg-card)' : 'transparent',
+                color: entryType === t ? (t === 'income' ? 'var(--success)' : 'var(--text-primary)') : 'var(--text-secondary)',
+                fontWeight: entryType === t ? 700 : 500,
+                fontSize: '0.85rem',
+                boxShadow: entryType === t ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {t === 'expense' ? 'Expense' : 'Income'}
+            </button>
+          ))}
         </div>
 
         {/* Amount Display Card */}

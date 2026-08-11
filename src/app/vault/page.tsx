@@ -125,8 +125,8 @@ export default function VaultPage() {
           </div>
         </div>
       ) : (
-        /* Receipts: 2-column grid */
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        /* Receipts: responsive grid */
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '14px' }}>
           {filteredDocs.map((doc) => {
             const dataUrl = docThumbs[doc.id] || null;
             return (

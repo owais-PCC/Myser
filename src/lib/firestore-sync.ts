@@ -138,7 +138,7 @@ export async function pullFromCloud(userId: string) {
 }
 
 // Sync individual writes
-export async function syncCategory(userId: string, id: number, data: { name: string; color: string; icon: string; sort_order: number }) {
+export async function syncCategory(userId: string, id: number, data: { name: string; color: string; icon: string; sort_order: number; type?: string }) {
   if (!isSyncEnabled()) return;
   await setDoc(doc(firestore, `${userPath(userId)}/categories`, String(id)), { id, ...data });
 }
@@ -148,7 +148,7 @@ export async function syncDeleteCategory(userId: string, id: number) {
   await deleteDoc(doc(firestore, `${userPath(userId)}/categories`, String(id)));
 }
 
-export async function syncTransaction(userId: string, id: number, data: { category_id: number; amount: number; date: string; note: string | null; created_at: string; document_id?: number | null; comment?: string | null }) {
+export async function syncTransaction(userId: string, id: number, data: { category_id: number; amount: number; date: string; note: string | null; created_at: string; document_id?: number | null; comment?: string | null; type?: string; is_recurring?: boolean; auto_repeat?: boolean; recurrence_interval?: string | null; next_occurrence_date?: string | null }) {
   if (!isSyncEnabled()) return;
   await setDoc(doc(firestore, `${userPath(userId)}/transactions`, String(id)), { id, ...data });
 }
