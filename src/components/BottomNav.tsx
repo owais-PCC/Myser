@@ -18,7 +18,7 @@ const BUDGET_ITEMS = [
 const TRACKER_ITEMS = [
   { href: '/dashboard', label: 'Dash', icon: LayoutGrid },
   { href: '/history', label: 'History', icon: History },
-  { href: '/vault', label: 'My Logs', icon: FolderOpen },
+  { href: '/vault', label: 'Receipts', icon: FolderOpen },
   { href: '/analytics', label: 'Stats', icon: BarChart3 },
 ];
 
