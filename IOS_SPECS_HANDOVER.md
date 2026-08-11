@@ -122,20 +122,25 @@ involved:
     (`android/app/src/main/java/com/owais/myser/TextRecognizerPlugin.java`, wraps
     `com.google.mlkit.vision.text`) — fast, on-device, no cloud calls, no data leaves the
     device.
-  - **iOS**: **there is no native OCR plugin at all.** We checked — no Swift equivalent of
-    `TextRecognizerPlugin` exists in `ios/App/App/`. The code in `ocr-pipeline.ts`
-    (`recognizeText()`) tries to call a native `TextRecognizer` plugin, silently fails on iOS
-    since nothing registers it, and falls back to **Tesseract.js running in the WKWebView's JS
-    engine** — the same slower, less-accurate path used for browser/dev testing. **This is
-    very likely the single biggest reason OCR quality is worse than expected on iOS
-    specifically** — it's not using a comparable engine to Android at all right now.
-  - **Fix**: implement an iOS Capacitor plugin using **Apple's own Vision framework**
-    (`VNRecognizeTextRequest`, available iOS 13+) — Apple's first-party on-device OCR, roughly
-    comparable in speed/accuracy to ML Kit for Latin-script receipts, fully on-device (no
-    network calls). Mirror the existing plugin-registration pattern (`registerPlugin`,
-    `CAPPlugin`/`@objc` conventions) rather than introducing a different native-bridging
-    approach. This is a clean, self-contained addition — it doesn't touch the Android path or
-    any shared logic below.
+  - **iOS**: **✅ FIXED as of `TextRecognizerPlugin.swift`** (committed after this doc was
+    first written — check `git log -- ios/App/App/TextRecognizerPlugin.swift` for the exact
+    commit). Originally there was no native OCR plugin at all — no Swift equivalent of
+    `TextRecognizerPlugin.java` existed in `ios/App/App/`, so `ocr-pipeline.ts`'s
+    `recognizeText()` silently fell through to Tesseract.js running in the WKWebView's JS
+    engine, the same slower/less-accurate path used for browser/dev testing. **This was very
+    likely the single biggest reason OCR quality was worse on iOS specifically.**
+    Added `ios/App/App/TextRecognizerPlugin.swift` using **Apple's own Vision framework**
+    (`VNRecognizeTextRequest`, iOS 13+) — fully on-device, no network calls, registers itself as
+    plugin name `"TextRecognizer"` with the same `recognize({base64}) -> {text}` shape Android
+    already uses, so **zero changes were needed in `ocr-pipeline.ts`** for iOS to pick it up.
+    Registered explicitly via `bridge?.registerPluginType(...)` in `MainViewController.swift`'s
+    `capacitorDidLoad()`, mirroring Android's explicit `registerPlugin(...)` call in
+    `MainActivity.java`. **Verified compiling correctly for both `arm64`/`x86_64` via CI**
+    (`build-ios-simulator` run
+    [31492187017](https://github.com/owais-PCC/Myser/actions/runs/31492187017)) — but **not yet
+    runtime-tested against a real receipt photo**, since that needs an actual device/camera, not
+    a CI-built simulator. **First thing to verify on the real device**: scan a real receipt and
+    confirm OCR quality actually improved.
 
 - **Amount, date extraction**: 100% regex/heuristic parsing of the raw OCR text
   (`extractAmount`, `extractDate` in `ocr-pipeline.ts`) — no ML involved at all.
@@ -224,6 +229,42 @@ This is a substantial feature — likely its own multi-ticket effort. `TICKETS.m
 ("Itemized supermarket OCR & multi-category split") is the existing anchor ticket for the
 line-item-splitting half; the tax/GST piece should probably be scoped as an explicit addition to
 it rather than a separate ticket, since both changes touch the same OCR extraction pass.
+
+### Recommended architecture direction (agreed in discussion, still needs full scoping before build)
+
+Reliable itemized extraction — parsing a messy receipt into individual `[item, price, category]`
+tuples, correctly, across wildly inconsistent receipt layouts — is a structured-understanding
+task existing regex/keyword logic genuinely can't do well. This is exactly the kind of task
+vision-capable LLMs (Claude, GPT-4V, Gemini) are good at and small on-device models aren't. But
+the app also needs to keep working with no internet connection, which rules out an online-only
+approach.
+
+**Hybrid, two-path design:**
+
+- **Online path (primary, when connected)**: send the receipt image to a vision-capable LLM API
+  with a prompt requesting structured JSON — items, prices, per-item category, tax lines.
+  Dramatically more reliable than rule-based parsing for messy/handwritten/multi-language
+  receipts.
+- **Offline path (fallback, no connection)**: the on-device OCR now available on both platforms
+  (Vision framework on iOS as of this doc's Part 2, ML Kit on Android) + the existing regex/
+  keyword pipeline, degrading gracefully to today's behavior — one transaction, best-guess
+  category, not itemized — rather than failing outright.
+- The app needs to detect connectivity and pick a path, and should be transparent to the user
+  about which one ran (e.g. "Split into 4 items" vs. "Logged as one expense — reconnect for
+  itemized splitting").
+
+**Open questions that need explicit decisions before building** (not yet decided — surface these
+back to us, don't assume):
+- Which LLM provider, and who bears the per-scan API cost — this likely needs to sit behind the
+  paid tier (see monetization ideas raised separately), not be free/unlimited.
+- Sending a receipt photo to a third-party API is new data leaving the device — needs explicit
+  user consent/opt-in (not just a privacy-policy mention) and accurate App Privacy disclosure,
+  distinct from the existing on-device-only OCR.
+- Whether the existing crowd-sourced merchant dictionary (`global_merchant_data` in Firestore —
+  see Part 2) stays as the offline fallback's category-guessing aid, or becomes redundant once
+  the online path exists. Current recommendation: **keep it** — it's a free, already-built,
+  offline-capable signal; don't invest further in it as a "real trained model," since an LLM
+  will out-perform any small custom classifier we'd build ourselves for the online path anyway.
 
 ---
 
