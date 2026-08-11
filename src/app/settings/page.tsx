@@ -670,79 +670,6 @@ export default function SettingsPage() {
 
         </div>
 
-        {/* Custom Goal Banner Image Card */}
-        <div
-          style={{
-            position: 'relative',
-            height: '160px',
-            borderRadius: '20px',
-            backgroundImage: 'url("/goals_banner.png")',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            display: 'flex',
-            alignItems: 'flex-end',
-            padding: '20px',
-            overflow: 'hidden',
-            marginBottom: '24px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 100%)',
-              zIndex: 1
-            }}
-          />
-          <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <div style={{ color: 'white', fontWeight: 800, fontSize: '1.2rem', letterSpacing: '-0.3px' }}>
-              Focus on your goals
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.85rem', fontWeight: 500 }}>
-              Visualizing your path to financial freedom.
-            </div>
-          </div>
-        </div>
-
-        {/* Detailed Settings Section Card */}
-        <div className="card" style={{ padding: '20px', marginBottom: '24px' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '16px' }}>
-            Detailed Settings
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Setting Row 1 */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
-                <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                  Auto-switch based on date
-                </span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500, lineHeight: 1.3 }}>
-                  Switch to Budget Mode on the 1st of the month
-                </span>
-              </div>
-              <Toggle checked={autoSwitch} onChange={() => setAutoSwitch(!autoSwitch)} />
-            </div>
-
-            {/* Separator line */}
-            <div style={{ height: '1px', background: 'var(--border)' }} />
-
-            {/* Setting Row 2 */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
-                <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                  Advanced Analytics
-                </span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500, lineHeight: 1.3 }}>
-                  Enable deeper insights for the selected mode
-                </span>
-              </div>
-              <Toggle checked={advancedAnalytics} onChange={() => setAdvancedAnalytics(!advancedAnalytics)} />
-            </div>
-          </div>
-        </div>
-
         {/* Save Preference Button */}
         <button
           onClick={handleSavePreference}
@@ -1606,49 +1533,6 @@ export default function SettingsPage() {
                 <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', display: 'block' }}>Month End Report</span>
                 <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '2px', display: 'block' }}>PDF Statements & AI Analysis</span>
               </div>
-            </div>
-            <ChevronRight size={16} color="var(--text-muted)" />
-          </div>
-        </div>
-      </div>
-
-      {/* SYSTEM SECTION */}
-      <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>
-        System
-      </div>
-      <div className="card" style={{ padding: '0 16px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {/* Row 1: Notifications */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px 0',
-              borderBottom: '1px solid var(--border)',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Bell size={18} color="var(--text-secondary)" />
-              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>Notifications</span>
-            </div>
-            <ChevronRight size={16} color="var(--text-muted)" />
-          </div>
-
-          {/* Row 2: Security */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px 0',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Shield size={18} color="var(--text-secondary)" />
-              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>Security</span>
             </div>
             <ChevronRight size={16} color="var(--text-muted)" />
           </div>
