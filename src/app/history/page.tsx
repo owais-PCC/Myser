@@ -10,7 +10,9 @@ import CategoryIcon from '@/components/CategoryIcon';
 import { useAuth } from '@/context/AuthContext';
 import { useAppMode } from '@/context/AppModeContext';
 import { Toast, useToast } from '@/components/Toast';
-import { generateMonthEndReport } from '@/lib/report-generator';
+import { generateMonthEndReportDoc } from '@/lib/report-generator';
+import ReportPreviewModal from '@/components/ReportPreviewModal';
+import { jsPDF } from 'jspdf';
 import { FileDown } from 'lucide-react';
 
 interface Category {
@@ -28,6 +30,7 @@ export default function HistoryPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCat, setSelectedCat] = useState<number | 'All'>('All');
+  const [reportDoc, setReportDoc] = useState<{ doc: jsPDF; month: string } | null>(null);
   const { currency, fmt } = useCurrency();
   const { user } = useAuth();
   const { mode } = useAppMode();
@@ -41,8 +44,8 @@ export default function HistoryPage() {
     }
     setIsGeneratingReport(true);
     try {
-      const filename = await generateMonthEndReport(month, user, currency, mode);
-      showToast('Report downloaded', 'success', filename);
+      const doc = await generateMonthEndReportDoc(month, user, currency, mode);
+      setReportDoc({ doc, month });
     } catch (e) {
       showToast('Failed to generate report', 'error');
       console.error(e);
@@ -232,6 +235,14 @@ export default function HistoryPage() {
           scrollbar-width: none;
         }
       `}} />
+
+      {/* Report Preview Modal */}
+      <ReportPreviewModal
+        isOpen={!!reportDoc}
+        doc={reportDoc?.doc || null}
+        month={reportDoc?.month || ''}
+        onClose={() => setReportDoc(null)}
+      />
     </div>
   );
 }

@@ -403,6 +403,83 @@ export async function generateMonthEndReportDoc(
   return doc;
 }
 
+export async function saveOrSharePdf(
+  doc: jsPDF,
+  month: string
+): Promise<{ success: boolean; method: string; fileName: string }> {
+  const fileName = `myser-report-${month}.pdf`;
+  const blob = doc.output('blob');
+
+  // 1. Web Share API (iOS / Mobile Share Sheet — lets user pick "Save to Files", AirDrop, Mail, etc.)
+  if (typeof window !== 'undefined' && navigator.share && navigator.canShare) {
+    try {
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Myser Report ${month}`,
+          text: `Financial report for ${month}`,
+        });
+        return { success: true, method: 'share', fileName };
+      }
+    } catch (e: any) {
+      if (e.name === 'AbortError') return { success: false, method: 'cancelled', fileName };
+      console.warn('Navigator share failed, attempting fallback:', e);
+    }
+  }
+
+  // 2. HTML5 File System Access API (Desktop — lets user pick exact folder location!)
+  if (typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
+    try {
+      const handle = await (window as any).showSaveFilePicker({
+        suggestedName: fileName,
+        types: [
+          {
+            description: 'PDF Document',
+            accept: { 'application/pdf': ['.pdf'] },
+          },
+        ],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return { success: true, method: 'picker', fileName: handle.name || fileName };
+    } catch (e: any) {
+      if (e.name === 'AbortError') return { success: false, method: 'cancelled', fileName };
+      console.warn('File picker cancelled or failed:', e);
+    }
+  }
+
+  // 3. Mobile Capacitor Filesystem fallback
+  try {
+    const { Capacitor } = await import('@capacitor/core');
+    if (Capacitor.isNativePlatform()) {
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const base64 = doc.output('datauristring').split(',')[1];
+      await Filesystem.writeFile({
+        path: `Download/Myser/${fileName}`,
+        data: base64,
+        directory: Directory.ExternalStorage,
+        recursive: true,
+      });
+      return { success: true, method: 'filesystem', fileName };
+    }
+  } catch (err) {
+    console.error('Capacitor filesystem write failed:', err);
+  }
+
+  // 4. Standard Browser Download Fallback
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return { success: true, method: 'download', fileName };
+}
+
 export async function generateMonthEndReport(
   month: string,
   user: { displayName: string | null; email: string | null } | null,
@@ -410,41 +487,8 @@ export async function generateMonthEndReport(
   mode: 'budget' | 'tracker'
 ): Promise<string> {
   const doc = await generateMonthEndReportDoc(month, user, currency, mode);
-  const fileName = `myser-report-${month}.pdf`;
-  let saved = false;
-
-  const dataUri = doc.output('datauristring');
-  const base64Data = dataUri.split(',')[1];
-
-  try {
-    const { Capacitor } = await import('@capacitor/core');
-    if (Capacitor.isNativePlatform()) {
-      const { Filesystem, Directory } = await import('@capacitor/filesystem');
-      await Filesystem.writeFile({
-        path: `Download/Myser/${fileName}`,
-        data: base64Data,
-        directory: Directory.ExternalStorage,
-        recursive: true,
-      });
-      saved = true;
-    }
-  } catch (err) {
-    console.error('Capacitor PDF save failed, using fallback:', err);
-  }
-
-  if (!saved) {
-    const blob = doc.output('blob');
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-  }
-
-  return fileName;
+  const result = await saveOrSharePdf(doc, month);
+  return result.fileName;
 }
 
 /**

@@ -18,7 +18,9 @@ import PageHeader from '@/components/PageHeader';
 import CategoryIcon from '@/components/CategoryIcon';
 import { useAuth } from '@/context/AuthContext';
 import { Toast, useToast } from '@/components/Toast';
-import { generateMonthEndReport } from '@/lib/report-generator';
+import { generateMonthEndReportDoc } from '@/lib/report-generator';
+import ReportPreviewModal from '@/components/ReportPreviewModal';
+import { jsPDF } from 'jspdf';
 import { FileDown } from 'lucide-react';
 
 export default function AnalyticsPage() {
@@ -27,6 +29,7 @@ export default function AnalyticsPage() {
   const { user } = useAuth();
   const { toast, show: showToast, hide: hideToast } = useToast();
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportDoc, setReportDoc] = useState<{ doc: jsPDF; month: string } | null>(null);
 
   async function handleExportReport() {
     const hasTransactions = catData.some((c) => c.spent > 0);
@@ -36,8 +39,8 @@ export default function AnalyticsPage() {
     }
     setIsGeneratingReport(true);
     try {
-      const filename = await generateMonthEndReport(month, user, currency, mode);
-      showToast('Report downloaded', 'success', filename);
+      const doc = await generateMonthEndReportDoc(month, user, currency, mode);
+      setReportDoc({ doc, month });
     } catch (e) {
       showToast('Failed to generate report', 'error');
       console.error(e);
@@ -452,6 +455,14 @@ export default function AnalyticsPage() {
           </div>
         </>
       )}
+
+      {/* Report Preview Modal */}
+      <ReportPreviewModal
+        isOpen={!!reportDoc}
+        doc={reportDoc?.doc || null}
+        month={reportDoc?.month || ''}
+        onClose={() => setReportDoc(null)}
+      />
     </div>
   );
 }
