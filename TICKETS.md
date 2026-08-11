@@ -134,13 +134,9 @@ Build green (`build-ios-simulator` run [31257973365](https://github.com/owais-PC
 
 ## MYS-5 — Google Drive backup token refresh & restore validation
 
-**Status:** todo — needs `drive-backup.ts` read
+**Status:** removed — feature deleted, not fixed
 
-**Current state (per roadmap doc):** cached OAuth access token isn't refreshed, so backups fail silently once it expires; restore unzips directly over `financeapp_db` without checking manifest/table structure first.
-
-**Fix (pending code read):** Google Identity Services OAuth2 PKCE refresh flow; validate `manifest.json` + expected table headers (`categories`, `transactions`, `budgets`, `documents`) before restoring; snapshot a local rollback backup before applying a restore; progress toasts during zip/upload.
-
-**Depends on:** none.
+Product decision: the Google Drive backup/restore and ZIP export/import feature was removed entirely rather than hardened (`src/lib/drive-backup.ts`, `src/lib/receipt-export.ts` deleted, along with their only dependents `jszip`/`file-saver`). No longer applicable.
 
 ---
 
@@ -166,17 +162,18 @@ Full in-app preview modal (iframe on web, styled mockup on native), Share/Save a
 
 ## MYS-8 — Income tracking
 
-**Status:** todo
+**Status:** scoped, ready to build
 
-**Current state:** `transactions` table has no `type` column — the schema and every query (`getSpendingByCategory`, dashboard totals, etc.) assume expense-only.
+**Current state:** `transactions`/`categories` tables have no `type` column — schema and every query (`getSpendingByCategory`, dashboard totals, etc.) assume expense-only. No income UI exists anywhere.
 
-**Fix:**
-1. Migration: `ALTER TABLE transactions ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'`.
-2. Seed income categories (Salary, Freelance, Investments, Gifts & Refunds, Other Income).
-3. `/add`: segmented `Expense | Income` control at top.
-4. `/dashboard`: Net Cash Flow card (`Income − Expenses`), income-vs-expense bar chart.
+**Scope (finalized in discussion):**
+1. Migration: `ALTER TABLE categories ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'` and `ALTER TABLE transactions ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'` — reuses the existing categories/transactions tables and their query patterns rather than new tables.
+2. Seed starter income categories (Salary, Business, Freelance, Investments, Gifts & Refunds, Other Income) — user can customize like expense categories.
+3. `/add`: `Expense | Income` segmented toggle at top; switching swaps category list + terminology (e.g. "What did you spend on?" → "Where did this come from?").
+4. **New dedicated `/income` page**, linked from the bottom nav in **both** budget and tracker mode (not gated to budget mode only, per discussion) — full income history/detail lives here.
+5. Dashboard integration (e.g. a Net Cash Flow card) explicitly **deferred** — to be scoped separately once the base feature is live.
 
-**Depends on:** none, but touches the same `db.ts` surface as MYS-9 — sequence them, don't run in parallel.
+**Depends on:** none, but touches the same `db.ts`/schema surface as MYS-11 (recurring) — sequence them, don't run in parallel.
 
 ---
 
@@ -189,6 +186,22 @@ Full in-app preview modal (iframe on web, styled mockup on native), Share/Save a
 **Fix:** line-by-line `[Item Name] ... [Price]` extraction in `ocr-pipeline.ts`; per-line keyword categorization against existing category dictionaries; present as a split-review group in `NotificationsPanel.tsx` letting the user tweak categories before confirming N separate transactions.
 
 **Depends on:** MYS-8 if split items can be income-side (returns/refunds) — otherwise independent. Recommend doing last; highest complexity, most likely to need its own sub-tickets once `ocr-pipeline.ts` is read.
+
+---
+
+## MYS-11 — Recurring expenses (tag + optional auto-repeat)
+
+**Status:** scoped, ready to build
+
+**Current state:** no recurrence concept anywhere in the schema or UI.
+
+**Scope (finalized in discussion) — two tiers:**
+1. **Plain "Recurring" tag**: `is_recurring INTEGER NOT NULL DEFAULT 0` column on `transactions` (same `ALTER TABLE` migration pattern as `document_id`/`comment`). Checkbox on `/add`. No automation — purely a label for filtering.
+2. **Optional "Auto-repeat"**: only selectable when Recurring is on. Additional columns: `auto_repeat INTEGER NOT NULL DEFAULT 0`, `recurrence_interval TEXT` (monthly only for v1 — weekly/yearly deferred), `next_occurrence_date TEXT`. **Mechanism: catch-up on app open**, not a true background scheduler (no server/native background task exists or is in scope) — on launch, check all `auto_repeat` transactions and insert any occurrences that came due since the app was last opened, advancing `next_occurrence_date` each time. Fully offline-capable; if the app isn't opened for a while, missed occurrences post in a batch next launch rather than instantly.
+3. **Analytics integration**: add an "Exclude recurring" toggle on `/analytics` that recomputes totals/averages/charts with `is_recurring = 1` transactions filtered out — this is the actual motivating use case (large recurring expenses inflate daily-average calculations). Budget-vs-spent totals elsewhere (Dashboard, Budget page) are **unaffected** — recurring expenses still count as real spending there; only Analytics gets the exclude option.
+4. Edit/delete semantics for v1: kept simple — editing or deleting an auto-repeat transaction only affects that single posted instance, not the underlying schedule/future occurrences. (Editing the recurrence schedule itself, or bulk-editing a series, is out of scope for v1.)
+
+**Depends on:** none, but touches the same `db.ts`/schema surface as MYS-8 — sequence them, don't run in parallel.
 
 ---
 
