@@ -325,43 +325,90 @@ export default function AnalyticsPage() {
                   </ResponsiveContainer>
 
                   {/* Center Donut Label */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      textAlign: 'center',
-                      pointerEvents: 'none',
-                      background: 'rgba(255, 255, 255, 0.92)',
-                      backdropFilter: 'blur(6px)',
-                      padding: '8px 14px',
-                      borderRadius: '16px',
-                      boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
-                      border: '1px solid var(--border)',
-                      minWidth: '95px',
-                    }}
-                  >
-                    {activeSlice !== null && pieData[activeSlice] ? (
-                      <>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                          {pieData[activeSlice].name}
-                        </div>
-                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '1px' }}>
-                          {fmt(pieData[activeSlice].value)}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Total
-                        </div>
-                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '1px' }}>
-                          {fmt(totalSpent)}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  {(() => {
+                    const activeItem = activeSlice !== null && pieData[activeSlice] ? pieData[activeSlice] : null;
+                    const activeColor = activeItem ? activeItem.color : 'var(--accent)';
+
+                    return (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          textAlign: 'center',
+                          pointerEvents: 'none',
+                          background: 'rgba(255, 255, 255, 0.96)',
+                          backdropFilter: 'blur(8px)',
+                          padding: '10px 16px',
+                          borderRadius: '18px',
+                          boxShadow: activeItem ? `0 6px 20px ${activeColor}35` : '0 6px 18px rgba(0,0,0,0.08)',
+                          border: `2.5px solid ${activeColor}`,
+                          minWidth: '105px',
+                          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {activeItem ? (
+                          <>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px',
+                                fontSize: '0.82rem',
+                                fontWeight: 800,
+                                color: 'var(--text-primary)',
+                                lineHeight: 1.2,
+                              }}
+                            >
+                              <span>{activeItem.name}</span>
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '1.05rem',
+                                fontWeight: 900,
+                                color: 'var(--text-primary)',
+                                marginTop: '3px',
+                                letterSpacing: '-0.3px',
+                              }}
+                            >
+                              {fmt(activeItem.value)}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div
+                              style={{
+                                fontSize: '0.72rem',
+                                fontWeight: 800,
+                                color: 'var(--text-muted)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.6px',
+                              }}
+                            >
+                              Total
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '1.05rem',
+                                fontWeight: 900,
+                                color: 'var(--text-primary)',
+                                marginTop: '2px',
+                                letterSpacing: '-0.3px',
+                              }}
+                            >
+                              {fmt(totalSpent)}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </>
             )}
