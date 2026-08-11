@@ -477,7 +477,7 @@ export default function LogPage() {
                 maxHeight: '240px',
                 overflowY: 'auto',
                 padding: '6px',
-                animation: 'slideDown 0.2s ease',
+                animation: 'dropdownSlideDown 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
               }}
             >
               {categories.map((cat) => {

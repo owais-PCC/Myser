@@ -513,6 +513,11 @@ html, body {
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+@keyframes dropdownSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Swipe delete hint */
 .delete-btn {
   background: var(--danger);
