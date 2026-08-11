@@ -65,7 +65,7 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
 
   const ICON_OPTIONS = [
     '🛒', '⛽', '👗', '💡', '🏥', '🎬', '🤝', '🚗', '🎓', '🍱',
-    '🍔', '🍕', '☕', '🍷', '🚌', '✈️', '🏠', '🔧', '💊', '🛒',
+    '🍔', '🍕', '☕', '🍷', '🚌', '✈️', '🏠', '🔧', '💊', '🏋️',
     '📱', '💻', '🎮', '📚', '💼', '🎁', '🎨', '🚀',
   ];
   const COLOR_OPTIONS = ['#047857', '#4ECDC4', '#A29BFE', '#FD79A8', '#55EFC4', '#FDCB6E', '#81ECEC', '#74B9FF', '#FAB1A0', '#E17055', '#00B894', '#6C5CE7'];
@@ -594,9 +594,9 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
                 <div>
                   <label className="label">Icon</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '100px', overflowY: 'auto' }}>
-                    {ICON_OPTIONS.map((emoji) => (
+                    {ICON_OPTIONS.map((emoji, idx) => (
                       <button
-                        key={emoji}
+                        key={`${emoji}-${idx}`}
                         type="button"
                         onClick={() => setNewCatIcon(emoji)}
                         style={{
