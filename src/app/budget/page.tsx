@@ -43,6 +43,8 @@ export default function BudgetPage() {
 
   useEffect(() => {
     loadData();
+    window.addEventListener('expense-saved', loadData);
+    return () => window.removeEventListener('expense-saved', loadData);
   }, [loadData]);
 
   const lumpSumVal = parseFloat(lumpSumStr) || 0;

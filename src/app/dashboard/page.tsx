@@ -32,6 +32,9 @@ export default function DashboardPage() {
       setLoading(false);
     }
     load();
+
+    window.addEventListener('expense-saved', load);
+    return () => window.removeEventListener('expense-saved', load);
   }, [monthStr]);
 
   const totalBudgeted = data.reduce((s, c) => s + c.budget, 0);
