@@ -4,7 +4,12 @@ import { useState, useEffect } from 'react';
 import { Sparkles, X, Check } from 'lucide-react';
 import { getUserProfile, scansRemaining, UserProfile, PRO_MONTHLY_SCAN_CAP } from '@/lib/firestore-sync';
 import { fetchProviderUsage, ProviderUsageSnapshot } from '@/lib/itemized-scan';
-import { purchasePro, verifyPurchaseWithServer } from '@/lib/purchases';
+// purchasePro/verifyPurchaseWithServer from '@/lib/purchases' — not called
+// from here yet. Wiring them into the button before the native purchase
+// plugins exist just surfaces their "not implemented" error as an alert,
+// which reads as broken rather than "coming soon." Swap the button back to
+// calling them once the iOS engineer has the native side working — see
+// IOS_SPECS_HANDOVER.md Part 4.
 
 interface ProUpgradeModalProps {
   uid: string | null;
@@ -54,21 +59,12 @@ export default function ProUpgradeModal({ uid, onClose }: ProUpgradeModalProps) 
       .finally(() => setLoading(false));
   }, [uid]);
 
-  async function handleUpgradeClick() {
-    // Calls the real (scaffolded) purchase flow — see src/lib/purchases.ts
-    // for exactly what's implemented vs. what the iOS engineer still needs
-    // to wire up (native StoreKit/Play Billing plugin, then server-side
-    // receipt verification). Both currently throw with a clear message,
-    // so this correctly still can't grant Pro today — but the call path
-    // is real now, not a bare alert().
-    try {
-      const result = await purchasePro();
-      await verifyPurchaseWithServer(result);
-      // Re-fetch so the UI reflects the (server-verified) new tier.
-      if (uid) setProfile(await getUserProfile(uid));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Purchase failed.');
-    }
+  function handleUpgradeClick() {
+    // Payments aren't live yet — see src/lib/purchases.ts and
+    // IOS_SPECS_HANDOVER.md Part 4 for what's already scaffolded and what
+    // the iOS engineer still needs to build (native StoreKit/Play Billing
+    // plugins, then real server-side receipt verification).
+    alert('Hang tight — payment methods will be live soon!');
   }
 
   const tier = profile?.tier ?? 'free';

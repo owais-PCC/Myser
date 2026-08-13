@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { addDocument, addTransaction, addCategory, getCategories, saveMerchantMemory, updateDocumentFileName } from '@/lib/db';
 import { analyzeReceipt } from '@/lib/ocr-pipeline';
-import { groupItems, scanReceiptItemized, fetchAvailableProviders, ReceiptLineItem, LlmProvider, ProviderOption } from '@/lib/itemized-scan';
+import { groupItems, scanReceiptItemized, fetchAvailableProviders, ReceiptLineItem, LlmProvider, ProviderOption, ItemizedScanQuotaError } from '@/lib/itemized-scan';
 import ItemizedGroupsEditor from '@/components/ItemizedGroupsEditor';
+import ProUpgradeModal from '@/components/ProUpgradeModal';
 import { useCurrency } from '@/context/CurrencyContext';
+import { auth } from '@/lib/firebase';
 
 interface ShareReceiptModalProps {
   base64: string;
@@ -50,6 +52,9 @@ export default function ShareReceiptModal({ base64, mimeType, onClose }: ShareRe
   const [selectedProvider, setSelectedProvider] = useState<LlmProvider>('gemini');
   const [splitStatus, setSplitStatus] = useState<SplitStatus>('idle');
   const [splitError, setSplitError] = useState<string | null>(null);
+  // Hitting the free/Pro cap isn't a normal error — surface the upgrade
+  // screen directly instead of a red error line the user has to interpret.
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     // Fire-and-forget alongside the OCR run — an empty result just means
@@ -121,6 +126,15 @@ export default function ShareReceiptModal({ base64, mimeType, onClose }: ShareRe
       setItemizedMode(true);
       setSplitStatus('idle');
     } catch (err) {
+      if (err instanceof ItemizedScanQuotaError && err.reason !== 'not-signed-in') {
+        // Out of free/Pro scans — show the upgrade screen directly rather
+        // than an error the user has to figure out what to do with.
+        // 'not-signed-in' still falls through to the plain error message
+        // below since "upgrade to Pro" isn't the fix for that case.
+        setSplitStatus('idle');
+        setShowUpgradeModal(true);
+        return;
+      }
       setSplitStatus('error');
       setSplitError(err instanceof Error ? err.message : 'Split failed for an unknown reason.');
     }
@@ -348,6 +362,10 @@ export default function ShareReceiptModal({ base64, mimeType, onClose }: ShareRe
           )}
         </div>
       </div>
+
+      {showUpgradeModal && (
+        <ProUpgradeModal uid={auth.currentUser?.uid ?? null} onClose={() => setShowUpgradeModal(false)} />
+      )}
     </>
   );
 }
