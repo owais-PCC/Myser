@@ -46,6 +46,14 @@ them. Once you have it:
 2. Then come back and read the rest of this file, plus `TICKETS.md`, before starting any actual
    work.
 
+**Note on scope:** that file gives you a Firebase *service-account* credential (for
+`receipt-scan-api`'s server code to run locally) — that's programmatic backend access only, not
+Firebase Console (the web UI) access, which you will not be given. Any setup step that needs a
+change in Firebase Console itself (enabling a sign-in provider, changing project settings, etc.)
+is not yours to do — send the project owner whatever values they need and they'll make the
+change and hand back whatever you need in return. Part 1, item 2 (Sign In with Apple) below is a
+concrete example of exactly what that handoff looks like.
+
 ### ⚠️ Work in a separate branch — do not commit directly to main
 
 **All of this work must happen on a dedicated branch, not `main`/the production branch.** This
@@ -86,6 +94,19 @@ without Xcode. **This is a hard App Store blocker**: the app already offers Goog
 Guideline 4.8 requires Apple Sign-In too, and it will not function without this entitlement.
 
 Also needs: Apple provider enabled in Firebase Console (project `masyr-9dbb9`).
+
+**⚠️ You will not be given Firebase Console access — this is deliberate, not an oversight.**
+Enabling the Apple provider is a one-time, one-directional handoff back to the project owner,
+not something to request access for. Once you've created a Sign In with Apple key in your Apple
+Developer account, send the project owner:
+- Your Apple **Team ID**
+- The **Services ID** you registered for Sign In with Apple
+- The **Key ID** and the downloaded **`.p8` private key file** for that Sign In with Apple key
+
+They'll paste those into Firebase Console themselves and send back the callback/redirect URL
+Firebase generates — you'll need to enter that URL into the Services ID config in Apple
+Developer Portal to complete the handshake. That's the only Firebase-side step for this item;
+everything else (entitlement, `Info.plist`, code) is yours to do directly in Xcode.
 
 ### 3. Google Sign-In on iOS — reproduced hang, root cause narrowed but not confirmed (App Store blocker)
 
