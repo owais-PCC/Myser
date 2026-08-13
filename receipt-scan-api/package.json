@@ -1,0 +1,22 @@
+{
+  "name": "myser-receipt-scan-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone Vercel serverless backend for Myser's itemized-receipt LLM proxy (see TICKETS.md MYS-9/MYS-10). Split out from the main app because it needs a real server (holds LLM API keys, enforces scan quota) while the main app is a static Next.js export with no server of its own. Originally built as a Firebase Cloud Function, moved to Vercel because Firebase's Blaze plan (required for Cloud Functions at all, even free-tier usage) wouldn't accept the project owner's payment methods — Vercel's Hobby tier needs no card.",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel deploy --prod",
+    "compare-models": "ts-node scripts/compare-models.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  },
+  "devDependencies": {
+    "@vercel/node": "^5.0.0",
+    "typescript": "^5.7.0",
+    "@types/node": "^20",
+    "ts-node": "^10.9.2",
+    "dotenv": "^16.4.5"
+  }
+}
