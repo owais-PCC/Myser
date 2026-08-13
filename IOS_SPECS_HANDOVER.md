@@ -28,6 +28,24 @@ Everything below should be built **within the existing architecture**, not by re
 If something here seems to require a genuine architecture change, stop and flag it back to us
 rather than proceeding — that's a conversation to have first, not a unilateral call.
 
+### 🔑 First thing to do: get the config/secrets file from the engineer's contact
+
+None of this builds or runs without a separate file — **`iOS_ENGINEER_ENV_HANDOFF.md`** — that
+was deliberately kept out of this repo and out of git entirely (it contains real API keys and a
+full Firebase service-account credential, which must never be committed). It was handed to the
+iOS engineer directly as a file, not pasted into chat.
+
+**If you're a Claude Code session picking this up and that file hasn't been shared with you yet
+(or you can't find it on disk), stop and ask the person you're working with for it before doing
+anything else** — don't try to reconstruct the values, guess at placeholders, or proceed without
+them. Once you have it:
+
+1. Read it in full — it has its own embedded instructions at the top for exactly what to do with
+   it (create `.env.local` files at specific paths, values not to print back or commit, etc.).
+   Follow those instructions as written.
+2. Then come back and read the rest of this file, plus `TICKETS.md`, before starting any actual
+   work.
+
 ### ⚠️ Work in a separate branch — do not commit directly to main
 
 **All of this work must happen on a dedicated branch, not `main`/the production branch.** This
