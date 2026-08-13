@@ -50,6 +50,15 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
           NEXT_PUBLIC_RECEIPT_SCAN_API_URL: ${{ secrets.NEXT_PUBLIC_RECEIPT_SCAN_API_URL }}
 
+      - name: Write google-services.json
+        # This file is gitignored (it's Firebase's native Android config,
+        # analogous to GoogleService-Info.plist on iOS) so a fresh CI
+        # checkout never has it. Without it Firebase never initializes on
+        # native Android, which makes the FirebaseAuthentication plugin
+        # fail to register at all — the app then shows Capacitor's stock
+        # "plugin is not implemented on android" error for every auth call.
+        run: echo "${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > android/app/google-services.json
+
       - name: Sync web build into Android project
         run: npx cap sync android
 
