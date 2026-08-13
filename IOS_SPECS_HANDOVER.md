@@ -256,6 +256,73 @@ here.
 
 ---
 
+## Part 4 — Payments (App Store + Play Store) — this is your main remaining task
+
+**Plan:** single "Myser Pro" tier, **$5/month**, no free trial nagging (see `TICKETS.md` MYS-10 for
+the full monetization decision — free tier stays fully usable forever, one lifetime AI-split scan,
+Pro gets 50/month). We've built everything around this that doesn't require Xcode/Android Studio;
+what's left needs real accounts and native tooling neither of us has from this environment.
+
+### What already exists (don't rebuild)
+
+- **Tier data model**: `users/{uid}.tier` is `'free' | 'pro' | 'executive'`, enforced **server-side
+  only** in `receipt-scan-api/lib/quota.ts` — the client can read it (`src/lib/firestore-sync.ts`'s
+  `getUserProfile()`) but never write it. This is deliberate and must stay true: the moment `tier`
+  becomes client-writable, "Pro" is one devtools edit away for anyone.
+- **UI**: `src/components/ProUpgradeModal.tsx` (Settings → Myser Pro) already shows plan, usage,
+  and an "Upgrade to Pro" button. It's real, not a mockup.
+- **Purchase call path**: `src/lib/purchases.ts` has `purchasePro()` and
+  `verifyPurchaseWithServer()` — both throw clear "not implemented" errors right now, but the
+  shape is final. `ProUpgradeModal` already calls them.
+- **Server verification endpoint**: `receipt-scan-api/api/verify-purchase.ts` exists, accepts
+  `{ platform: 'ios'|'android', receiptData: string }`, currently returns 501. Full TODO comments
+  inside it explain exactly what to call (Apple's verifyReceipt / StoreKit 2 transaction
+  verification, Google Play Developer API) and what to do on success (set `tier: 'pro'` the same
+  way `receipt-scan-api/scripts/grant-tier.js` does).
+
+### What you need to do
+
+1. **Create the products.** In App Store Connect: an auto-renewable subscription for Myser Pro,
+   $5/month. In Play Console: an equivalent subscription product. Note the exact product IDs —
+   they need to match on the native side.
+2. **Build the native purchase plugins.** Follow the exact pattern already used for OCR — explicit
+   plugin registration, not auto-discovery:
+   - iOS: a Swift plugin wrapping StoreKit 2's `Product.purchase()`, registered in
+     `MainViewController.swift`'s `capacitorDidLoad()` the same way `TextRecognizerPlugin.swift` is
+     (see that file for the exact pattern to copy).
+   - Android: a Java/Kotlin plugin wrapping Play Billing Library's `launchBillingFlow()`,
+     registered in `MainActivity.java` the same way `TextRecognizerPlugin.java` is. Add the Play
+     Billing Library dependency to `android/app/build.gradle` yourself with Android Studio's
+     dependency picker — we didn't add an unverified version number to that file rather than guess
+     one that might not resolve.
+   - Wire both into `getPurchasePlatform()`/`purchasePro()` in `src/lib/purchases.ts` — no other
+     client-side changes should be needed.
+3. **Implement `verify-purchase.ts` for real** — follow the TODOs already in that file.
+4. **Get a Google Play Developer API service account** (Play Console → Setup → API access) — a
+   *different* Google Cloud credential from the Firebase one already in `.env.local`, needed only
+   for server-side purchase verification.
+5. **Get the Apple shared secret** (App Store Connect → Users and Access → Integrations →
+   In-App Purchase) for the legacy receipt-verification API, or use StoreKit 2 transaction
+   verification instead (Apple's newer, generally preferred approach — your call).
+6. Test the full loop on TestFlight / a Play Console internal test track before going live — this
+   genuinely cannot be verified from a Windows/no-Mac environment.
+
+### Signed release builds
+
+Both platforms have GitHub Actions workflows ready:
+
+- **`.github/workflows/android-release.yml`** — fully working, already tested end-to-end (built,
+  signed, and produced real AAB/APK artifacts). Run via Actions tab → workflow_dispatch, give it a
+  version name/code.
+- **`.github/workflows/ios-release.yml`** — a **skeleton only**, explicitly marked as such in its
+  own header comment. It could not be tested without a real Apple Developer account/certificates,
+  so treat it as a first draft to verify, not a working pipeline. It needs these GitHub repo
+  secrets, none of which exist yet: `APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`,
+  `APPLE_PROVISIONING_PROFILE_BASE64`, `APPLE_TEAM_ID`, `KEYCHAIN_PASSWORD` (see the workflow file's
+  header comment for exactly what each one is and where to get it).
+
+---
+
 ## Quick-reference: what's already solid, don't re-litigate
 
 - Auth architecture (Firebase Auth + local SQLite + Firestore sync layer), income tracking,

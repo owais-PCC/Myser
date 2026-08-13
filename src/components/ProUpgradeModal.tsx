@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Sparkles, X, Check } from 'lucide-react';
 import { getUserProfile, scansRemaining, UserProfile, PRO_MONTHLY_SCAN_CAP } from '@/lib/firestore-sync';
 import { fetchProviderUsage, ProviderUsageSnapshot } from '@/lib/itemized-scan';
+import { purchasePro, verifyPurchaseWithServer } from '@/lib/purchases';
 
 interface ProUpgradeModalProps {
   uid: string | null;
@@ -53,14 +54,21 @@ export default function ProUpgradeModal({ uid, onClose }: ProUpgradeModalProps) 
       .finally(() => setLoading(false));
   }, [uid]);
 
-  function handleUpgradeClick() {
-    // TODO(iOS engineer): wire real StoreKit / Play Billing purchase flow
-    // here. On success, the purchase-validation step should set
-    // `tier: 'pro'` on this user's `users/{uid}` Firestore document.
-    // Left as a no-op for now — see IOS_SPECS_HANDOVER.md and TICKETS.md
-    // MYS-10 for the full context on why payments aren't built from this
-    // environment.
-    alert('Payments aren\'t set up yet — this button is a placeholder for the real App Store purchase flow.');
+  async function handleUpgradeClick() {
+    // Calls the real (scaffolded) purchase flow — see src/lib/purchases.ts
+    // for exactly what's implemented vs. what the iOS engineer still needs
+    // to wire up (native StoreKit/Play Billing plugin, then server-side
+    // receipt verification). Both currently throw with a clear message,
+    // so this correctly still can't grant Pro today — but the call path
+    // is real now, not a bare alert().
+    try {
+      const result = await purchasePro();
+      await verifyPurchaseWithServer(result);
+      // Re-fetch so the UI reflects the (server-verified) new tier.
+      if (uid) setProfile(await getUserProfile(uid));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Purchase failed.');
+    }
   }
 
   const tier = profile?.tier ?? 'free';
