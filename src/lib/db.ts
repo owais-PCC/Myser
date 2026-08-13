@@ -23,7 +23,14 @@ export async function wipeLocalData() {
   database.run('DELETE FROM pending_logs');
   database.run('DELETE FROM merchant_memory');
   database.run('DELETE FROM categories');
+  // Restore the full starter set, not just the original ten — a wipe that
+  // silently downgraded the user to a coarser category list than a fresh
+  // install gets would be its own surprise. Clearing the seeded-once flag
+  // lets the extra-expense seeding run again for this now-empty table.
   seedCategories(database);
+  seedIncomeCategories(database);
+  if (typeof window !== 'undefined') localStorage.removeItem(EXTRA_CATEGORIES_SEEDED_KEY);
+  seedAdditionalExpenseCategories(database);
   persistDb(database);
 }
 
@@ -38,6 +45,29 @@ export const DEFAULT_CATEGORIES = [
   { id: 8, name: 'Transport', color: '#74B9FF', icon: '🚌' },
   { id: 9, name: 'Education', color: '#FAB1A0', icon: '📚' },
   { id: 10, name: 'Other', color: '#B2BEC3', icon: '📦' },
+];
+
+// Finer-grained expense categories added after v1. These exist mainly so
+// itemized receipt splitting (MYS-9) has somewhere accurate to put each
+// line item — the AI is told to pick from the user's real category list,
+// so a coarse list ("Food" for everything edible) directly caps how good
+// the labelling can be. Splitting groceries/snacks/eating-out/self-care/
+// household apart is what lets one supermarket receipt fan out sensibly.
+//
+// IDs start at 201 deliberately. Expense defaults occupy 1-10, income
+// defaults 101-106, and USER-created categories are AUTOINCREMENT from 11
+// upward — real accounts already have categories at 11-16, so anything in
+// that range would collide with data that already exists.
+export const ADDITIONAL_EXPENSE_CATEGORIES = [
+  { id: 201, name: 'Groceries', color: '#6AB04C', icon: '🛒' },
+  { id: 202, name: 'Snacks', color: '#F0932B', icon: '🍿' },
+  { id: 203, name: 'Eating Out', color: '#EB4D4B', icon: '🍽️' },
+  { id: 204, name: 'Self Care', color: '#E056FD', icon: '🧴' },
+  { id: 205, name: 'Household', color: '#22A6B3', icon: '🧼' },
+  { id: 206, name: 'Rent', color: '#7ED6DF', icon: '🏠' },
+  { id: 207, name: 'Subscriptions', color: '#686DE0', icon: '🔁' },
+  { id: 208, name: 'Travel', color: '#4834D4', icon: '✈️' },
+  { id: 209, name: 'Gifts', color: '#FF7979', icon: '🎁' },
 ];
 
 // IDs start at 101 to stay clear of both the fixed expense category ids
@@ -128,6 +158,14 @@ function initSchema(database: Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- No longer written to or read by the app. Receipts used to be queued
+    -- here by OCR before the user confirmed them (surfaced via a
+    -- notification bell), which meant one receipt could be recorded twice:
+    -- once as the auto-queued row and again on Save. Receipts are now held
+    -- in memory until Save, so nothing populates this table.
+    -- Kept (rather than dropped) purely so existing installs that still
+    -- have un-reviewed rows don't have that data destroyed by an upgrade;
+    -- safe to remove in a later migration once that no longer matters.
     CREATE TABLE IF NOT EXISTS pending_logs (
       id TEXT PRIMARY KEY,
       document_id INTEGER,
@@ -197,6 +235,14 @@ function initSchema(database: Database) {
   try { database.run('ALTER TABLE transactions ADD COLUMN recurrence_interval TEXT'); } catch { /* exists */ }
   try { database.run('ALTER TABLE transactions ADD COLUMN next_occurrence_date TEXT'); } catch { /* exists */ }
 
+  // Itemized receipts + tax capture (MYS-9). line_items is a JSON array
+  // (ReceiptLineItem[], see itemized-scan.ts) recording what made up this
+  // specific transaction when it came from a split receipt — null/absent
+  // for every ordinary transaction. tax_amount is the GST/VAT/sales-tax
+  // line captured off the receipt, separate from the item total.
+  try { database.run('ALTER TABLE transactions ADD COLUMN line_items TEXT'); } catch { /* exists */ }
+  try { database.run('ALTER TABLE transactions ADD COLUMN tax_amount REAL'); } catch { /* exists */ }
+
   // Seed starter income categories once — covers both brand-new installs
   // (this runs as part of initSchema before the explicit seedCategories()
   // call in getDb()) and existing installs upgrading into this feature.
@@ -206,6 +252,59 @@ function initSchema(database: Database) {
     if (count === 0) seedIncomeCategories(database);
   } catch {
     // ignore
+  }
+
+  seedAdditionalExpenseCategories(database);
+}
+
+// Marks the finer-grained expense categories as already offered, so they're
+// added exactly once. Without this the seeding below would re-run on every
+// app load and resurrect any of these categories the user deliberately
+// deleted — deleting "Pets" only to have it reappear next launch would be
+// its own bug. Lives in localStorage alongside the database itself
+// (DB_KEY), so the flag and the data it describes share a lifetime.
+const EXTRA_CATEGORIES_SEEDED_KEY = 'myser_extra_expense_categories_seeded_v1';
+
+function seedAdditionalExpenseCategories(database: Database) {
+  if (typeof window === 'undefined') return;
+  if (localStorage.getItem(EXTRA_CATEGORIES_SEEDED_KEY) === 'true') return;
+
+  try {
+    // Skip any name the user already has. Someone may well have created
+    // their own "Groceries" by hand, and seeding a second one would leave
+    // them with a confusing duplicate pair. Compared case-insensitively so
+    // "groceries" also counts as already present.
+    const existingNames = new Set<string>();
+    const res = database.exec('SELECT name FROM categories');
+    if (res.length) {
+      for (const row of res[0].values) existingNames.add(String(row[0]).trim().toLowerCase());
+    }
+
+    const stmt = database.prepare(
+      "INSERT INTO categories (id, name, color, icon, type, sort_order) VALUES (?, ?, ?, ?, 'expense', ?)"
+    );
+    let inserted = 0;
+    for (const cat of ADDITIONAL_EXPENSE_CATEGORIES) {
+      if (existingNames.has(cat.name.toLowerCase())) continue;
+      try {
+        // sort_order = id keeps these after the originals (whose
+        // sort_order values are small) without disturbing user ordering.
+        stmt.run([cat.id, cat.name, cat.color, cat.icon, cat.id]);
+        inserted++;
+      } catch {
+        // id somehow taken — skip rather than abort the whole batch
+      }
+    }
+    stmt.free();
+
+    localStorage.setItem(EXTRA_CATEGORIES_SEEDED_KEY, 'true');
+
+    // getDb() only persists on the fresh-install path, so an upgrade would
+    // otherwise keep these in memory until some unrelated write happened
+    // to flush the database.
+    if (inserted > 0) persistDb(database);
+  } catch {
+    // Never let category seeding break app startup.
   }
 }
 
@@ -261,7 +360,8 @@ export async function getCategories(type: 'expense' | 'income' = 'expense') {
   );
 }
 
-export async function addCategory(data: { name: string; color: string; icon: string; type?: 'expense' | 'income' }) {
+/** Returns the id of the newly created category. */
+export async function addCategory(data: { name: string; color: string; icon: string; type?: 'expense' | 'income' }): Promise<number> {
   const database = await getDb();
   const type = data.type || 'expense';
   const maxRes = database.exec(`SELECT COALESCE(MAX(sort_order), -1) FROM categories WHERE type = '${type}'`);
@@ -271,13 +371,14 @@ export async function addCategory(data: { name: string; color: string; icon: str
     'INSERT INTO categories (name, color, icon, sort_order, type) VALUES (?, ?, ?, ?, ?)',
     [data.name, data.color, data.icon, sortOrder, type]
   );
+  const idRes = database.exec('SELECT last_insert_rowid()');
+  const id = idRes[0].values[0][0] as number;
   persistDb(database);
   const uid = getUserId();
   if (uid) {
-    const idRes = database.exec('SELECT last_insert_rowid()');
-    const id = idRes[0].values[0][0] as number;
     syncCategory(uid, id, { name: data.name, color: data.color, icon: data.icon, sort_order: sortOrder, type });
   }
+  return id;
 }
 
 export async function deleteCategory(id: number) {
@@ -321,6 +422,8 @@ export async function addTransaction(data: {
   is_recurring?: boolean;
   auto_repeat?: boolean;
   recurrence_interval?: 'monthly';
+  line_items?: string; // JSON ReceiptLineItem[] — see itemized-scan.ts
+  tax_amount?: number;
 }) {
   const database = await getDb();
   const type = data.type || 'expense';
@@ -330,8 +433,8 @@ export async function addTransaction(data: {
   const nextOccurrence = data.auto_repeat ? addMonths(data.date, 1) : null;
 
   database.run(
-    'INSERT INTO transactions (category_id, amount, date, note, document_id, comment, type, is_recurring, auto_repeat, recurrence_interval, next_occurrence_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"))',
-    [data.category_id, data.amount, data.date, data.note || null, data.document_id || null, data.comment || null, type, isRecurring, autoRepeat, interval, nextOccurrence]
+    'INSERT INTO transactions (category_id, amount, date, note, document_id, comment, type, is_recurring, auto_repeat, recurrence_interval, next_occurrence_date, line_items, tax_amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"))',
+    [data.category_id, data.amount, data.date, data.note || null, data.document_id || null, data.comment || null, type, isRecurring, autoRepeat, interval, nextOccurrence, data.line_items || null, data.tax_amount ?? null]
   );
   const idRes = database.exec('SELECT last_insert_rowid()');
   const id = idRes[0].values[0][0] as number;
@@ -343,6 +446,7 @@ export async function addTransaction(data: {
       category_id: data.category_id, amount: data.amount, date: data.date, note: data.note || null, created_at,
       document_id: data.document_id || null, comment: data.comment || null, type,
       is_recurring: !!data.is_recurring, auto_repeat: !!data.auto_repeat, recurrence_interval: interval, next_occurrence_date: nextOccurrence,
+      line_items: data.line_items || null, tax_amount: data.tax_amount ?? null,
     });
   }
 }
@@ -402,7 +506,7 @@ export async function getTransactions(limit = 50, month?: string, type: 'expense
   const monthFilter = month ? `AND t.date LIKE '${month}%'` : '';
   const results = database.exec(`
     SELECT t.id, t.category_id, t.amount, t.date, t.note, t.created_at, t.document_id, t.comment,
-           t.type, t.is_recurring, t.auto_repeat,
+           t.type, t.is_recurring, t.auto_repeat, t.line_items, t.tax_amount,
            c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM transactions t
     JOIN categories c ON t.category_id = c.id
@@ -426,7 +530,7 @@ export async function getTransactionsByMonth(
   const recurringFilter = excludeRecurring ? 'AND t.is_recurring = 0' : '';
   const results = database.exec(`
     SELECT t.id, t.category_id, t.amount, t.date, t.note, t.created_at, t.document_id, t.comment,
-           t.type, t.is_recurring, t.auto_repeat,
+           t.type, t.is_recurring, t.auto_repeat, t.line_items, t.tax_amount,
            c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM transactions t
     JOIN categories c ON t.category_id = c.id
@@ -767,59 +871,6 @@ export async function lookupMerchantCategory(merchant: string): Promise<{ catego
   return null;
 }
 
-// ---- PENDING LOGS ----
-export interface PendingLog {
-  id: string;
-  document_id: number;
-  merchant: string;
-  amount: number;
-  category_id: number;
-  date: string;
-  raw_ocr_text: string;
-  status: string;
-  created_at: string;
-}
-
-export async function addPendingLog(data: {
-  id: string;
-  document_id: number;
-  merchant: string;
-  amount: number;
-  category_id: number;
-  date: string;
-  raw_ocr_text: string;
-}) {
-  const database = await getDb();
-  database.run(
-    'INSERT INTO pending_logs (id, document_id, merchant, amount, category_id, date, raw_ocr_text, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime("now"))',
-    [data.id, data.document_id, data.merchant, data.amount, data.category_id, data.date, data.raw_ocr_text, 'pending']
-  );
-  persistDb(database);
-}
-
-export async function getPendingLogs(): Promise<PendingLog[]> {
-  const database = await getDb();
-  const results = database.exec("SELECT id, document_id, merchant, amount, category_id, date, raw_ocr_text, status, created_at FROM pending_logs WHERE status = 'pending' ORDER BY created_at DESC");
-  if (!results.length) return [];
-  const [{ columns, values }] = results;
-  return values.map((row) =>
-    Object.fromEntries(columns.map((col, i) => [col, row[i]]))
-  ) as unknown as PendingLog[];
-}
-
-export async function getPendingLogCount(): Promise<number> {
-  const database = await getDb();
-  const results = database.exec("SELECT COUNT(*) FROM pending_logs WHERE status = 'pending'");
-  if (!results.length) return 0;
-  return results[0].values[0][0] as number;
-}
-
-export async function deletePendingLog(id: string) {
-  const database = await getDb();
-  database.run('DELETE FROM pending_logs WHERE id = ?', [id]);
-  persistDb(database);
-}
-
 export async function updateDocumentFileName(docId: number, newName: string) {
   const database = await getDb();
   database.run('UPDATE documents SET file_name = ? WHERE id = ?', [newName, docId]);
@@ -872,6 +923,11 @@ export interface Transaction {
   type: 'expense' | 'income';
   is_recurring: number;
   auto_repeat: number;
+  // JSON-encoded ReceiptLineItem[] (see itemized-scan.ts) when this
+  // transaction is one category-group split off a multi-item receipt scan
+  // (MYS-9) — null for every ordinary transaction.
+  line_items: string | null;
+  tax_amount: number | null;
 }
 
 export interface Budget {
