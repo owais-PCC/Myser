@@ -1,11 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useDrawer } from '@/context/DrawerContext';
-import { useNotifications } from '@/context/NotificationContext';
-import NotificationsPanel from './NotificationsPanel';
 
 interface PageHeaderProps {
   title: string;
@@ -16,8 +13,6 @@ export default function PageHeader({ title, showBack = true }: PageHeaderProps) 
   const router = useRouter();
   const { user } = useAuth();
   const { open } = useDrawer();
-  const { pendingCount, processing } = useNotifications();
-  const [showNotifications, setShowNotifications] = useState(false);
 
   const initial = (user?.displayName || user?.email || 'U')[0].toUpperCase();
 
@@ -47,48 +42,6 @@ export default function PageHeader({ title, showBack = true }: PageHeaderProps) 
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Notification bell */}
-          <button
-            onClick={() => setShowNotifications(true)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '4px',
-            }}
-          >
-            {processing ? (
-              <div style={{ width: '20px', height: '20px', border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-              </svg>
-            )}
-            {pendingCount > 0 && !processing && (
-              <span style={{
-                position: 'absolute',
-                top: '0',
-                right: '0',
-                width: '16px',
-                height: '16px',
-                borderRadius: '50%',
-                background: 'var(--danger)',
-                color: 'white',
-                fontSize: '0.6rem',
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                {pendingCount}
-              </span>
-            )}
-          </button>
-
           {/* Profile picture — opens drawer */}
           <div
             onClick={open}
@@ -127,8 +80,6 @@ export default function PageHeader({ title, showBack = true }: PageHeaderProps) 
           </div>
         </div>
       </div>
-
-      <NotificationsPanel isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
     </>
   );
 }

@@ -17,6 +17,7 @@ import {
 } from '@/lib/db';
 import PageHeader from '@/components/PageHeader';
 import MonthPicker from '@/components/MonthPicker';
+import ProUpgradeModal from '@/components/ProUpgradeModal';
 import { useAuth } from '@/context/AuthContext';
 import { useSync } from '@/context/SyncContext';
 import { uploadAllData, deleteAllCloudData } from '@/lib/firestore-sync';
@@ -105,6 +106,7 @@ export default function SettingsPage() {
   const [signingOut, setSigningOut] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearStep, setClearStep] = useState<1 | 2>(1);
+  const [showProModal, setShowProModal] = useState(false);
   const [clearing, setClearing] = useState(false);
 
   // Navigation state for sub-panels
@@ -1524,6 +1526,7 @@ export default function SettingsPage() {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '16px 0',
+              borderBottom: '1px solid var(--border)',
               cursor: 'pointer',
             }}
           >
@@ -1536,8 +1539,30 @@ export default function SettingsPage() {
             </div>
             <ChevronRight size={16} color="var(--text-muted)" />
           </div>
+
+          {/* Row 5: Myser Pro — a plain settings row like any other, not a
+              banner/upsell. Only ever seen when the user comes looking
+              for it (MYS-10 explicit no-nagging decision). */}
+          <div
+            onClick={() => setShowProModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 0',
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Sparkles size={18} color="#6366f1" />
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>Myser Pro</span>
+            </div>
+            <ChevronRight size={16} color="var(--text-muted)" />
+          </div>
         </div>
       </div>
+
+      {showProModal && <ProUpgradeModal uid={user?.uid || null} onClose={() => setShowProModal(false)} />}
 
       {/* Cloud Sync */}
       <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>

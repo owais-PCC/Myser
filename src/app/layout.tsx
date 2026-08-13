@@ -7,7 +7,6 @@ import { AppModeProvider } from '@/context/AppModeContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { SyncProvider } from '@/context/SyncContext';
 import { DrawerProvider } from '@/context/DrawerContext';
-import { NotificationProvider } from '@/context/NotificationContext';
 import AuthGate from '@/components/AuthGate';
 import ShareHandler from '@/components/ShareHandler';
 import Sidebar from '@/components/Sidebar';
@@ -42,17 +41,15 @@ export default function RootLayout({
             <CurrencyProvider>
               <AppModeProvider>
                 <DrawerProvider>
-                  <NotificationProvider>
-                    <AuthGate>
-                      <Sidebar />
-                      <div className="app-container">
-                        {children}
-                        <BottomNav />
-                      </div>
-                      <AppDrawer />
-                      <ShareHandler />
-                    </AuthGate>
-                  </NotificationProvider>
+                  <AuthGate>
+                    <Sidebar />
+                    <div className="app-container">
+                      {children}
+                      <BottomNav />
+                    </div>
+                    <AppDrawer />
+                    <ShareHandler />
+                  </AuthGate>
                 </DrawerProvider>
               </AppModeProvider>
             </CurrencyProvider>
