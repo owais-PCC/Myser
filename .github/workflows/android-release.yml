@@ -71,6 +71,14 @@ jobs:
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
+      - name: Ensure gradlew is executable
+        # Belt-and-suspenders: the exec bit on android/gradlew has been lost
+        # once already from a Windows-side git operation (mode flipped to
+        # 100644), which silently breaks this workflow with a cryptic
+        # "Permission denied" / exit 126. Re-assert it every run so that
+        # can't happen again regardless of what state the checkout is in.
+        run: chmod +x android/gradlew
+
       - name: Build signed release AAB (Play Store upload format)
         run: cd android && ./gradlew bundleRelease
 
