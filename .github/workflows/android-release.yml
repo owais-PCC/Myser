@@ -65,7 +65,7 @@ jobs:
       - name: Write keystore.properties
         run: |
           cat > android/keystore.properties << EOF
-          storeFile=app/myser-release.jks
+          storeFile=myser-release.jks
           storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
