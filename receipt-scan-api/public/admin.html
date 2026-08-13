@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Myser Admin</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 960px; margin: 40px auto; padding: 0 20px; background: #0f0f14; color: #e6e6ea; }
+  h1 { font-size: 1.3rem; margin-bottom: 4px; }
+  .sub { color: #8a8a95; font-size: 0.85rem; margin-bottom: 24px; }
+  #signin { max-width: 320px; }
+  input { width: 100%; box-sizing: border-box; padding: 10px 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #33333d; background: #1a1a22; color: #e6e6ea; font-size: 0.9rem; }
+  button { padding: 10px 16px; border-radius: 8px; border: none; background: #6366f1; color: white; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+  button:hover { background: #7274f2; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #error { color: #ef4444; font-size: 0.85rem; margin-top: 8px; min-height: 1.2em; }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #26262f; }
+  th { color: #8a8a95; font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.5px; }
+  select { background: #1a1a22; color: #e6e6ea; border: 1px solid #33333d; border-radius: 6px; padding: 5px 8px; font-size: 0.82rem; }
+  .save-btn { padding: 5px 10px; font-size: 0.75rem; }
+  .row-status { font-size: 0.72rem; color: #8a8a95; margin-left: 8px; }
+  .tag-executive { color: #6366f1; font-weight: 700; }
+  .tag-pro { color: #22c55e; font-weight: 700; }
+  .tag-free { color: #8a8a95; }
+  #userInfo { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  #signout { background: none; color: #8a8a95; text-decoration: underline; padding: 0; font-weight: 400; }
+</style>
+</head>
+<body>
+
+<h1>Myser Admin</h1>
+<div class="sub">Owner-only. Sign in with the same account that has the executive tier.</div>
+
+<div id="signin">
+  <input id="email" type="email" placeholder="Email" autocomplete="username" />
+  <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+  <button id="signinBtn">Sign in</button>
+  <div id="error"></div>
+</div>
+
+<div id="app" style="display:none">
+  <div id="userInfo">
+    <span id="whoami" class="sub" style="margin:0"></span>
+    <button id="signout">Sign out</button>
+  </div>
+  <button id="refreshBtn">Refresh</button>
+  <table id="usersTable" style="display:none">
+    <thead>
+      <tr><th>Email</th><th>Tier</th><th>Free scan</th><th>Scans this month</th><th>Created</th><th></th></tr>
+    </thead>
+    <tbody id="usersBody"></tbody>
+  </table>
+</div>
+
+<!--
+  Vanilla JS, no build step — this whole project (receipt-scan-api) is
+  plain Vercel serverless functions with no frontend framework, so a
+  static HTML page with CDN-loaded Firebase is the simplest thing that
+  fits, not a missing piece of architecture.
+
+  Firebase config values below are NEXT_PUBLIC_* equivalents (same values
+  as the main app's .env.local) — not secret, they're meant to be visible
+  in a client bundle. The actual security boundary is server-side: every
+  admin action requires a valid Firebase ID token AND that account's own
+  Firestore tier already being 'executive' (see lib/adminAuth.ts) — there
+  is no way to become executive from this page or any other client, only
+  via scripts/grant-tier.js run with the service-account credential.
+-->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBVljDVeo09whJmPAed_FuLUQEzTDZL7z8",
+    authDomain: "masyr-9dbb9.firebaseapp.com",
+    projectId: "masyr-9dbb9",
+    storageBucket: "masyr-9dbb9.firebasestorage.app",
+    messagingSenderId: "566369077547",
+    appId: "1:566369077547:web:2d3415f0c1946674f81d6e",
+  };
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  const API_BASE = window.location.origin; // same Vercel deployment
+
+  const els = {
+    signin: document.getElementById('signin'),
+    appDiv: document.getElementById('app'),
+    email: document.getElementById('email'),
+    password: document.getElementById('password'),
+    signinBtn: document.getElementById('signinBtn'),
+    error: document.getElementById('error'),
+    whoami: document.getElementById('whoami'),
+    signout: document.getElementById('signout'),
+    refreshBtn: document.getElementById('refreshBtn'),
+    table: document.getElementById('usersTable'),
+    body: document.getElementById('usersBody'),
+  };
+
+  els.signinBtn.onclick = async () => {
+    els.error.textContent = '';
+    try {
+      await signInWithEmailAndPassword(auth, els.email.value.trim(), els.password.value);
+    } catch (err) {
+      els.error.textContent = err.message || 'Sign-in failed.';
+    }
+  };
+  els.signout.onclick = () => signOut(auth);
+  els.refreshBtn.onclick = loadUsers;
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      els.signin.style.display = 'none';
+      els.appDiv.style.display = 'block';
+      els.whoami.textContent = `Signed in as ${user.email}`;
+      loadUsers();
+    } else {
+      els.signin.style.display = 'block';
+      els.appDiv.style.display = 'none';
+      els.table.style.display = 'none';
+    }
+  });
+
+  async function authedFetch(path, options = {}) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Not signed in.');
+    const idToken = await user.getIdToken();
+    const res = await fetch(API_BASE + path, {
+      ...options,
+      headers: { ...(options.headers || {}), Authorization: `Bearer ${idToken}` },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 403) throw new Error('This account is not on the executive tier — access denied.');
+      throw new Error(body.message || body.error || `Request failed (${res.status})`);
+    }
+    return res.json();
+  }
+
+  async function loadUsers() {
+    els.error.textContent = '';
+    try {
+      const { users } = await authedFetch('/api/admin/users');
+      renderUsers(users);
+    } catch (err) {
+      els.error.textContent = err.message;
+    }
+  }
+
+  function renderUsers(users) {
+    els.body.innerHTML = '';
+    for (const u of users) {
+      const tr = document.createElement('tr');
+
+      const tdEmail = document.createElement('td');
+      tdEmail.textContent = u.email || u.uid;
+      tr.appendChild(tdEmail);
+
+      const tdTier = document.createElement('td');
+      const select = document.createElement('select');
+      for (const t of ['free', 'pro', 'executive']) {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        if (t === u.tier) opt.selected = true;
+        select.appendChild(opt);
+      }
+      tdTier.appendChild(select);
+      tr.appendChild(tdTier);
+
+      const tdFree = document.createElement('td');
+      tdFree.textContent = u.hasUsedFreeItemizedScan ? 'used' : 'available';
+      tr.appendChild(tdFree);
+
+      const tdMonth = document.createElement('td');
+      tdMonth.textContent = `${u.itemizedScansUsedThisMonth} (${u.itemizedScansMonthKey || '—'})`;
+      tr.appendChild(tdMonth);
+
+      const tdCreated = document.createElement('td');
+      tdCreated.textContent = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—';
+      tr.appendChild(tdCreated);
+
+      const tdAction = document.createElement('td');
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'save-btn';
+      saveBtn.textContent = 'Save';
+      const status = document.createElement('span');
+      status.className = 'row-status';
+      saveBtn.onclick = async () => {
+        saveBtn.disabled = true;
+        status.textContent = 'saving…';
+        try {
+          await authedFetch('/api/admin/set-tier', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: u.uid, tier: select.value }),
+          });
+          status.textContent = 'saved ✓';
+        } catch (err) {
+          status.textContent = 'error: ' + err.message;
+        } finally {
+          saveBtn.disabled = false;
+        }
+      };
+      tdAction.appendChild(saveBtn);
+      tdAction.appendChild(status);
+      tr.appendChild(tdAction);
+
+      els.body.appendChild(tr);
+    }
+    els.table.style.display = users.length ? 'table' : 'none';
+  }
+</script>
+</body>
+</html>
