@@ -22,9 +22,37 @@ function isUserCancelledSignIn(e: unknown): boolean {
   return msg.includes('popup-closed') || msg.includes('cancelled') || msg.includes('canceled');
 }
 
+// @capacitor-firebase/authentication's iOS native handler
+// (GoogleAuthProviderHandler.swift) has two `guard let ... else { return }`
+// checks before it ever presents the sign-in sheet — neither one calls
+// call.reject() on failure, so if either guard fails the plugin call just
+// hangs forever: no sheet, no error, no log, nothing. We've seen exactly
+// that on iOS (button stuck on "Signing in..." indefinitely). We can't fix
+// the silent failure at its source (it's third-party code in node_modules),
+// so instead we stop trusting the native call to always respond: race it
+// against a timeout and surface a real, retryable error instead of hanging
+// the UI forever. Comfortably longer than any real account-picker flow
+// (including a slow network) but short enough a user won't think the app
+// is frozen.
+const NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS = 15000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(timeoutMessage)), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
 async function nativeGoogleSignIn() {
   const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-  const result = await FirebaseAuthentication.signInWithGoogle();
+  const result = await withTimeout(
+    FirebaseAuthentication.signInWithGoogle(),
+    NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS,
+    'Google sign-in timed out — the sign-in sheet never responded. Please try again.'
+  );
   const credential = GoogleAuthProvider.credential(result.credential?.idToken);
   await signInWithCredential(auth, credential);
 }
