@@ -1,0 +1,157 @@
+name: Build Signed iOS Release
+
+# ⚠️ SKELETON — will not run successfully until the secrets below are set.
+# This was built from a Windows/no-Mac environment with no real Apple
+# Developer account access, so it could not be tested end-to-end the way
+# the Android release workflow was (that one actually ran and produced a
+# real signed build). The iOS engineer needs to supply the real
+# certificate/profile/App Store Connect credentials and verify this
+# actually produces an installable, uploadable .ipa before relying on it.
+# See IOS_SPECS_HANDOVER.md for the full context.
+#
+# Manual trigger only, same reasoning as the other release/test workflows:
+# macOS runners are expensive (10x minute multiplier) — run this on demand
+# for a real release, not on every push.
+#
+# Required GitHub Actions secrets (Settings > Secrets and variables >
+# Actions on the repo) — none of these exist yet:
+#   APPLE_CERTIFICATE_BASE64        base64 of a .p12 Distribution
+#                                    certificate exported from Xcode/Keychain
+#                                    Access (Certificates, Identifiers &
+#                                    Profiles > Certificates)
+#   APPLE_CERTIFICATE_PASSWORD      the password set when exporting the .p12
+#   APPLE_PROVISIONING_PROFILE_BASE64
+#                                    base64 of the .mobileprovision file for
+#                                    com.owais.myser (App Store distribution
+#                                    profile)
+#   APPLE_TEAM_ID                   10-character Apple Developer Team ID
+#   KEYCHAIN_PASSWORD                any password — used only for the
+#                                    throwaway CI keychain, doesn't need to
+#                                    match anything else
+# For App Store Connect upload (optional — can also be done manually via
+# Transporter.app once the .ipa artifact is downloaded):
+#   APPSTORE_CONNECT_KEY_ID
+#   APPSTORE_CONNECT_ISSUER_ID
+#   APPSTORE_CONNECT_KEY_BASE64      base64 of the .p8 API key file
+on:
+  workflow_dispatch:
+    inputs:
+      versionName:
+        description: 'Version name for this release (e.g. 1.1.0)'
+        required: true
+      buildNumber:
+        description: 'Build number (integer, must increase every App Store upload)'
+        required: true
+
+jobs:
+  build-ios-release:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js static export
+        run: npm run build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_RECEIPT_SCAN_API_URL: ${{ secrets.NEXT_PUBLIC_RECEIPT_SCAN_API_URL }}
+
+      - name: Install CocoaPods dependencies
+        run: cd ios/App && pod install
+
+      - name: Sync web build into iOS project
+        run: npx cap sync ios
+
+      - name: Set version and build number
+        run: |
+          cd ios/App
+          agvtool new-marketing-version "${{ github.event.inputs.versionName }}"
+          agvtool new-version -all "${{ github.event.inputs.buildNumber }}"
+
+      - name: Import signing certificate and provisioning profile
+        env:
+          CERT_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Throwaway keychain scoped to this CI run only.
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo -n "$CERT_BASE64" | base64 --decode -o $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo -n "$PROFILE_BASE64" | base64 --decode -o $RUNNER_TEMP/profile.mobileprovision
+          cp $RUNNER_TEMP/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Archive
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+            -archivePath $RUNNER_TEMP/App.xcarchive \
+            -allowProvisioningUpdates \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            archive
+
+      - name: Export IPA
+        run: |
+          cd ios/App
+          cat > $RUNNER_TEMP/ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath $RUNNER_TEMP/App.xcarchive \
+            -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
+            -exportPath $RUNNER_TEMP/export
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: myser-release-ipa
+          path: ${{ runner.temp }}/export/*.ipa
+
+      # Optional: upload straight to App Store Connect (TestFlight) instead
+      # of downloading the .ipa and using Transporter.app manually. Commented
+      # out until APPSTORE_CONNECT_* secrets exist and this whole workflow
+      # has been verified to actually produce a valid .ipa first.
+      # - name: Upload to App Store Connect
+      #   env:
+      #     APPSTORE_CONNECT_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+      #     APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+      #   run: |
+      #     echo -n "${{ secrets.APPSTORE_CONNECT_KEY_BASE64 }}" | base64 --decode -o $RUNNER_TEMP/AuthKey.p8
+      #     xcrun altool --upload-app -f $RUNNER_TEMP/export/*.ipa -t ios \
+      #       --apiKey "$APPSTORE_CONNECT_KEY_ID" --apiIssuer "$APPSTORE_CONNECT_ISSUER_ID"

@@ -1,0 +1,94 @@
+name: Build Signed Android Release
+
+# Manual trigger only, same reasoning as the iOS simulator workflow: this
+# is meant to be run on demand when there's a real release to cut, not on
+# every push.
+on:
+  workflow_dispatch:
+    inputs:
+      versionName:
+        description: 'Version name for this release (e.g. 1.1.0)'
+        required: true
+      versionCode:
+        description: 'Version code (integer, must increase every Play Store upload)'
+        required: true
+
+jobs:
+  build-android-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js static export
+        run: npm run build
+        env:
+          # See ios-simulator-build.yml for why these are needed at build
+          # time (Firebase inits at module load, which runs during
+          # prerendering) and why repo secrets are fine for values that
+          # get inlined into the client bundle regardless.
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_RECEIPT_SCAN_API_URL: ${{ secrets.NEXT_PUBLIC_RECEIPT_SCAN_API_URL }}
+
+      - name: Sync web build into Android project
+        run: npx cap sync android
+
+      - name: Set version
+        run: |
+          sed -i "s/versionCode 1/versionCode ${{ github.event.inputs.versionCode }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"${{ github.event.inputs.versionName }}\"/" android/app/build.gradle
+
+      - name: Decode release keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/myser-release.jks
+
+      - name: Write keystore.properties
+        run: |
+          cat > android/keystore.properties << EOF
+          storeFile=app/myser-release.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
+      - name: Build signed release AAB (Play Store upload format)
+        run: cd android && ./gradlew bundleRelease
+
+      - name: Build signed release APK (for direct install/testing)
+        run: cd android && ./gradlew assembleRelease
+
+      - name: Clean up keystore from runner
+        if: always()
+        run: rm -f android/app/myser-release.jks android/keystore.properties
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: myser-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: myser-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
