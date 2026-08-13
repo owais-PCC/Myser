@@ -177,15 +177,114 @@ New Firestore fields (`type`, `is_recurring`, etc.) are synced for cross-device 
 
 ---
 
-## MYS-9 — Itemized supermarket OCR & multi-category split
+## MYS-9 — Itemized supermarket OCR & multi-category split (+ tax/GST capture)
 
-**Status:** todo — largest/riskiest ticket, needs `ocr-pipeline.ts` read first
+**Status:** todo — largest/riskiest ticket, scoped for building by us directly (not iOS-only —
+this is a **cross-platform feature**: web, Android, and iOS all get it, same as every other
+feature in this app). Paid/premium feature — see MYS-10.
 
-**Current state:** OCR pipeline assigns a receipt's full total to one category. No line-item parsing exists yet.
+**Current state:** OCR pipeline assigns a receipt's full total to one category. No line-item
+parsing exists yet. Tax/GST lines are actively discarded: `isSkipLine()` in `ocr-pipeline.ts`
+explicitly skips lines containing `tax`/`gst`/`vat` while hunting for the total.
 
-**Fix:** line-by-line `[Item Name] ... [Price]` extraction in `ocr-pipeline.ts`; per-line keyword categorization against existing category dictionaries; present as a split-review group in `NotificationsPanel.tsx` letting the user tweak categories before confirming N separate transactions.
+**The problem, concretely:** if someone shops at a cash-and-carry and buys items spanning
+several categories in one trip, today it all gets logged as one lump-sum transaction in one
+best-guessed category. Worked example (real numbers from scoping discussion) — a Walmart receipt
+with:
 
-**Depends on:** MYS-8 if split items can be income-side (returns/refunds) — otherwise independent. Recommend doing last; highest complexity, most likely to need its own sub-tickets once `ocr-pipeline.ts` is read.
+```
+Cheetos             3 x 200   =  600
+Dish washing soap   1 x 230   =  230
+Raw chicken         1 x ???   =  ???
+Roasted wings       6 x 500   = 3000
+Dove shampoo 500ml  1 x 1000  = 1000
+```
+
+should become **N separate transactions, one per category**, not one lump sum:
+- Snacks — 600 (Cheetos, + any other snack items on the same receipt e.g. Lays/Diet Coke)
+- Groceries — raw chicken + dish soap (category boundary judgment call, see open question below)
+- Eating Out/Food — 3000 (roasted wings, if judged prepared food rather than groceries)
+- Self Care — 1000 (Dove shampoo)
+
+Each transaction carries its own item list so tapping it later shows what made it up (e.g.
+"Cheetos x3, Lays, Diet Coke"), not just a total.
+
+**Implementation shape:**
+1. **Structured line-item extraction**: a vision-capable LLM call (see architecture below)
+   returns structured JSON per item — `{ item_name, quantity, unit_price, line_total, category }[]`
+   — with `category` constrained to the user's actual existing category list (from
+   `getCategories()`, passed into the prompt) so results always map onto real app categories, not
+   free-text guesses.
+2. **Grouping is app logic, not the LLM's job**: once the LLM returns the flat itemized array,
+   the app groups items by `category`, sums each group's `line_total` into a transaction amount,
+   keeps the item list as an attached breakdown. Don't ask the model to also decide "how many
+   transactions" — grouping-by-key is trivial deterministic code and shouldn't depend on the
+   model getting a second meta-step right.
+3. **Review UI before committing**: show each proposed category group as a card (merchant,
+   category, total, item list); let the user re-assign an item to a different group (recomputing
+   both groups' totals live), merge groups, or drop an item; then confirm, and the app creates N
+   separate transactions (one per surviving group). Extend the existing `NotificationsPanel`/
+   pending-log review flow (`pending_logs` table, `addPendingLog`) to handle N pending groups from
+   one receipt instead of one — don't invent a parallel review mechanism.
+4. **Schema**: `line_items` TEXT column on `transactions` (JSON array), nullable/empty for
+   ordinary non-itemized transactions — same `ALTER TABLE ... ADD COLUMN` migration pattern
+   already used throughout `db.ts`.
+5. **Tax/GST capture**: a new `extractTax(text)` (or an additional field the same LLM call
+   returns) to capture tax amount per receipt. New `tax_amount` column on `transactions`, same
+   migration pattern.
+6. **Tax analytics**: once captured, add a "Total GST/Tax Paid" summary to `/analytics` — same
+   pattern as MYS-11's "Exclude recurring" toggle for threading a new aggregate through
+   `getMonthlyTotals`/`getSpendingByCategory`-style queries.
+
+**Open question the worked example surfaces directly**: category boundaries for judgment-call
+items (dish soap → Groceries or a separate Household category? roasted wings → Eating Out or
+Groceries if raw/frozen vs. hot/prepared?) need either (a) a firm category list + prompt
+instructions precise enough for the LLM to apply consistently, or (b) accepting some items will
+be borderline and leaning on the review UI (step 3) as the cheap correction mechanism.
+**Recommendation: (b)** — don't over-invest in prompt engineering for cases the review UI already
+handles cheaply.
+
+**Recommended architecture — hybrid online/offline:**
+
+Reliable itemized extraction is a structured-understanding task existing regex/keyword logic
+can't do well; it's exactly what vision-capable LLMs (Claude, GPT-4V, Gemini) are good at and
+small on-device models aren't. But the app must keep working with no internet connection, which
+rules out an online-only approach.
+
+- **Online path (primary, when connected)**: send the receipt image to a vision-capable LLM API
+  with a prompt requesting structured JSON (items, prices, per-item category, tax lines) —
+  dramatically more reliable than rule-based parsing for messy/handwritten/multi-language
+  receipts.
+- **Offline path (fallback, no connection)**: the existing on-device OCR (Vision framework on
+  iOS, ML Kit on Android) + the existing regex/keyword pipeline, degrading gracefully to today's
+  behavior — one transaction, best-guess category, not itemized — rather than failing outright.
+- Detect connectivity, pick a path, and be transparent to the user about which one ran (e.g.
+  "Split into 4 items" vs. "Logged as one expense — reconnect for itemized splitting").
+
+**Status update — backend built:** the server-side proxy is live as a standalone Vercel
+serverless function in the sibling `receipt-scan-api/` project (own `package.json`, own deploy,
+not part of this app's build) — see its `README.md`. Originally built as a Firebase Cloud
+Function; moved to Vercel because Firebase's Blaze plan (required for Cloud Functions at all,
+even free-tier usage) wouldn't accept the project owner's payment methods. Vercel's Hobby tier
+needs no card. `ACTIVE_PROVIDER` in `receipt-scan-api/api/scan-receipt-itemized.ts` defaults to
+Gemini 2.5 Flash pending a real comparison run via `npm run compare-models` in that project.
+
+**Open questions needing explicit decisions before building:**
+- Which LLM provider, and who bears the per-scan API cost — likely sits behind the paid tier
+  (MYS-10), not free/unlimited.
+- Sending a receipt photo to a third-party API is new data leaving the device — needs explicit
+  user consent/opt-in (not just a privacy-policy mention) and accurate App Privacy disclosure,
+  distinct from the existing on-device-only OCR.
+- Whether the existing crowd-sourced merchant dictionary (`global_merchant_data` in Firestore,
+  `contributeToGlobalPool`/`pullGlobalDictionary`) stays as the offline fallback's
+  category-guessing aid, or becomes redundant once the online path exists.
+  **Recommendation: keep it** — free, already-built, offline-capable signal; don't invest further
+  in it as a "real trained model," an LLM will out-perform any small custom classifier we'd build
+  for the online path anyway.
+
+**Depends on:** MYS-8 if split items can be income-side (returns/refunds) — otherwise
+independent. Recommend doing last; highest complexity, most likely to need its own sub-tickets
+once scoping/prompt work starts.
 
 ---
 
@@ -207,11 +306,32 @@ New Firestore fields (`type`, `is_recurring`, etc.) are synced for cross-device 
 
 ## MYS-10 — Monetization tiering (Free / Myser Pro)
 
-**Status:** todo — blocked until feature set stabilizes
+**Status:** in progress — decided, now building
 
-**Fix:** add `tier: 'free' | 'pro'` to user profile; gate itemized OCR (MYS-9), cloud receipt sync (MYS-6), automated Drive backups (MYS-5), and CSV/Excel export behind it.
+**Decided plan (single plan for now, more tiers later once tax tooling exists):**
+- **Myser Pro: $5/month, one plan only.** No free-trial nagging, no upsell banners pushing
+  users toward it — the app stays fully usable for free indefinitely.
+- **Free tier**: unlimited use of the *standard* OCR flow (single transaction, best-guess
+  category) — this never gets gated or limited. Every user gets **exactly 1 free itemized scan,
+  lifetime**, and it only ever triggers on a receipt the app's own heuristic judges genuinely
+  multi-category/complex (see MYS-9's "skip the LLM call on simple receipts" heuristic — same
+  check decides both "is it worth an LLM call" and "should the one-time free trial fire here").
+  A simple one-item receipt never touches the free scan even if the user is on the free tier.
+- **Pro tier**: itemized scans up to the monthly cap (see MYS-9), everything else previously
+  scoped (cloud receipt sync MYS-6, automated backups MYS-5, CSV/Excel export) once those exist.
+- **Payments are NOT built by us.** We build the plan/tier data model and the UI (pricing
+  screen, "Upgrade to Pro" entry points, usage display) — actual payment processing (App Store
+  In-App Purchase / StoreKit on iOS, Play Billing on Android) is the Mac-based iOS engineer's
+  responsibility per `IOS_SPECS_HANDOVER.md`. Our job is to leave clean integration points (a
+  `tier` field to flip, a place for them to hook purchase-restore/receipt-validation logic in),
+  not to guess at StoreKit ourselves from this environment.
 
-**Depends on:** MYS-6, MYS-9 (gates features that must exist first). Do last.
+**Fix:** add `tier: 'free' | 'pro'` + `itemizedScansUsedThisMonth` + `hasUsedFreeItemizedScan`
+to user profile (Firestore, synced same pattern as other user-profile fields); gate itemized OCR
+(MYS-9) on it; gate cloud receipt sync (MYS-6), automated Drive backups (MYS-5), and CSV/Excel
+export behind it once those exist.
+
+**Depends on:** MYS-9 (the feature being gated). Building alongside MYS-9 now, not after.
 
 ---
 

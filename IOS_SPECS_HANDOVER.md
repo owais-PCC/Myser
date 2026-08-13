@@ -28,6 +28,16 @@ Everything below should be built **within the existing architecture**, not by re
 If something here seems to require a genuine architecture change, stop and flag it back to us
 rather than proceeding — that's a conversation to have first, not a unilateral call.
 
+### ⚠️ Work in a separate branch — do not commit directly to main
+
+**All of this work must happen on a dedicated branch, not `main`/the production branch.** This
+is real production code (Android is already in active use), and a real device + Xcode gives you
+much more room to break things while diagnosing (entitlements, signing, pbxproj edits, native
+plugin changes) than the CI-simulator-only process this was built under so far. Branch off,
+commit there, open a PR back to us when a given item is verified working — don't merge directly.
+If a fix genuinely needs testing across several throwaway attempts, that's exactly what the
+branch is for; keep `main` always in the last known-good state.
+
 ---
 
 ## Part 1 — Confirmed broken / needs real-device work
@@ -59,16 +69,64 @@ Guideline 4.8 requires Apple Sign-In too, and it will not function without this 
 
 Also needs: Apple provider enabled in Firebase Console (project `masyr-9dbb9`).
 
-### 3. Google Sign-In on iOS — status unclear, retest first
+### 3. Google Sign-In on iOS — reproduced hang, root cause narrowed but not confirmed (App Store blocker)
 
 Earlier testing (documented in `TICKETS.md` MYS-2a) showed Google Sign-In completing
-successfully after fixing a missing `CFBundleURLTypes` entry in `Info.plist`. However, several
-more fixes landed *after* that test (the `iosScheme` fix, the cold-launch layout fixes), and
-**we have not since re-confirmed Google Sign-In specifically works** — only email/password has
-been re-verified on the most recent builds. **First thing to do: retest Google Sign-In on a
-real device before assuming it works.** If it's still broken, `GoogleAuthProviderHandler.swift`
-(inside `@capacitor-firebase/authentication`) and the `CFBundleURLTypes` entry in
-`ios/App/App/Info.plist` are the places to start.
+successfully after fixing a missing `CFBundleURLTypes` entry in `Info.plist`. Since then it
+regressed (or was never actually solid) — **retested via Appetize and reproduced a real hang**:
+tapping "Sign in with Google" leaves the button stuck on "Signing in..." forever. **No account
+picker sheet ever appears.**
+
+What the logs show precisely (see `TICKETS.md` for the full log dump):
+- `⚡️ To Native -> FirebaseAuthentication signInWithGoogle` fires — the JS→native bridge call
+  reaches the plugin successfully.
+- After that: total silence. No native-side log line, no error, no crash.
+- The accompanying network capture shows **zero** Google/OAuth-related requests — only unrelated
+  iOS system traffic (safebrowsing checks, an Apple asset fetch). This means the native call
+  never even got as far as attempting the sign-in network flow.
+
+**Leading hypothesis** — re-read `GoogleAuthProviderHandler.swift` (inside
+`@capacitor-firebase/authentication`, `startSignInWithGoogleFlow`):
+
+```swift
+guard let clientId = FirebaseApp.app()?.options.clientID else { return }
+...
+guard let controller = self.pluginImplementation.getPlugin().bridge?.viewController else { return }
+```
+
+Neither guard calls `call.reject(...)` on failure — if either `clientId` or `controller`
+resolves to `nil` at call time, the function just returns silently. The JS Promise never
+resolves or rejects, which matches the observed symptom exactly (indefinite hang, zero error,
+zero log, zero network activity). This is third-party code (`node_modules`), so we can't patch
+it directly/durably — **this is diagnosis, not yet a confirmed fix.**
+
+**Second, equally live possibility**: all testing to date has been on **Appetize's cloud
+simulator**, not a real device or a real Mac-hosted Xcode Simulator. Modern `GIDSignIn` presents
+its OAuth UI via `ASWebAuthenticationSession` (a system-level sheet), and cloud-hosted simulator
+infrastructure is known to sometimes be unable to present that UI correctly — this would produce
+the *exact same symptom* (native call made, no sheet, no error, no network activity) with zero
+code being at fault. **We cannot currently tell these two explanations apart from this
+environment** — that's the actual reason this is being handed off rather than chased further
+here.
+
+**What to do first, in order:**
+1. Retest on a real device or genuine Mac-hosted Xcode Simulator. If the sheet appears there,
+   the bug was environmental (Appetize-only) and nothing further needs fixing — the mitigation
+   in step 2 stays as a safety net but Google Sign-In itself is fine.
+2. Already landed as a stopgap regardless of root cause: `LoginPage.tsx`'s `nativeGoogleSignIn()`
+   now races the native call against a 15s timeout (`NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS`) and
+   surfaces a real, retryable error instead of hanging the UI forever. This doesn't fix the
+   underlying cause — it just stops the app from lying to the user about what's happening. Keep
+   this regardless of what step 1 finds.
+3. If it still hangs on a real device, add targeted logging around the two guards above to
+   determine which one is actually failing (`clientId` vs. `controller`) — since we can't edit
+   `node_modules` durably, this likely means either patching the vendored pod locally for one
+   debug build (not committed) or reproducing the same logic in a small first-party diagnostic
+   call to isolate which value is nil. Once we know which guard fails, the real fix follows
+   directly: if `clientId` is nil, something's off with how `GoogleService-Info.plist`'s
+   `CLIENT_ID` is being loaded into `FirebaseApp.app()?.options`; if `controller` is nil, it's
+   something about how `MainViewController`/the bridge's `viewController` resolves at the moment
+   the button is tapped.
 
 ### 4. Account deletion — not built (App Store blocker)
 
@@ -189,82 +247,12 @@ current reliability as genuinely insufficient):
 
 ---
 
-## Part 3 — Next milestone: itemized receipts + tax/GST tracking
+## Part 3 — itemized receipts + tax/GST tracking: not part of this handover
 
-This is a real expansion of what OCR does today, described here as a **spec for scoping**, not
-something to build blind — discuss the detailed plan back with us before implementing, since it
-touches the schema and several screens.
-
-### The problem
-
-Today, a receipt is always logged as **one transaction in one category** — the full total,
-assigned to whichever category the merchant/keyword matching guessed. If someone shops at a
-cash-and-carry and buys groceries, cleaning supplies, and a few clothing items in one trip, it
-all gets logged as a single lump sum in one category. There's also no capture of tax (GST/VAT/
-sales tax) paid — `isSkipLine()` in `ocr-pipeline.ts` explicitly **skips** lines containing
-`tax`/`gst`/`vat` when hunting for the total, meaning that data is currently thrown away, not
-just unused.
-
-### What's wanted
-
-1. **Itemized line-item extraction**: parse individual `[item name] ... [price]` pairs from the
-   receipt body (not just the total), each with its own guessed category (reusing/extending the
-   existing `matchCategory` keyword approach, applied per-item rather than to the whole receipt).
-2. **A review UI** before committing: let the user see the parsed items grouped by guessed
-   category, correct any miscategorized items, merge/split as needed, and confirm — then the app
-   creates **N separate transactions** (one per category group) instead of one lump sum. This
-   naturally extends the existing `NotificationsPanel`/pending-log review flow
-   (`pending_logs` table, `addPendingLog`) already used for single-item OCR review — don't
-   invent a parallel review mechanism.
-3. **Tax/GST capture**: a new `extractTax(text)` function (mirroring `extractAmount`'s
-   keyword-line-detection pattern, but *targeting* the tax-related keywords `isSkipLine()`
-   currently discards) to capture the tax amount per receipt. Needs a schema addition — a
-   `tax_amount` column on `transactions` (same `ALTER TABLE ... ADD COLUMN` migration pattern
-   already used throughout `db.ts` for `document_id`, `comment`, `type`, `is_recurring`, etc.).
-4. **Tax analytics**: once captured, add a "Total GST/Tax Paid" summary to `/analytics` — same
-   pattern as the recently-added "Exclude recurring" work (`MYS-11` in `TICKETS.md`) for how to
-   thread a new aggregate through `getMonthlyTotals`/`getSpendingByCategory`-style queries.
-
-This is a substantial feature — likely its own multi-ticket effort. `TICKETS.md`'s `MYS-9`
-("Itemized supermarket OCR & multi-category split") is the existing anchor ticket for the
-line-item-splitting half; the tax/GST piece should probably be scoped as an explicit addition to
-it rather than a separate ticket, since both changes touch the same OCR extraction pass.
-
-### Recommended architecture direction (agreed in discussion, still needs full scoping before build)
-
-Reliable itemized extraction — parsing a messy receipt into individual `[item, price, category]`
-tuples, correctly, across wildly inconsistent receipt layouts — is a structured-understanding
-task existing regex/keyword logic genuinely can't do well. This is exactly the kind of task
-vision-capable LLMs (Claude, GPT-4V, Gemini) are good at and small on-device models aren't. But
-the app also needs to keep working with no internet connection, which rules out an online-only
-approach.
-
-**Hybrid, two-path design:**
-
-- **Online path (primary, when connected)**: send the receipt image to a vision-capable LLM API
-  with a prompt requesting structured JSON — items, prices, per-item category, tax lines.
-  Dramatically more reliable than rule-based parsing for messy/handwritten/multi-language
-  receipts.
-- **Offline path (fallback, no connection)**: the on-device OCR now available on both platforms
-  (Vision framework on iOS as of this doc's Part 2, ML Kit on Android) + the existing regex/
-  keyword pipeline, degrading gracefully to today's behavior — one transaction, best-guess
-  category, not itemized — rather than failing outright.
-- The app needs to detect connectivity and pick a path, and should be transparent to the user
-  about which one ran (e.g. "Split into 4 items" vs. "Logged as one expense — reconnect for
-  itemized splitting").
-
-**Open questions that need explicit decisions before building** (not yet decided — surface these
-back to us, don't assume):
-- Which LLM provider, and who bears the per-scan API cost — this likely needs to sit behind the
-  paid tier (see monetization ideas raised separately), not be free/unlimited.
-- Sending a receipt photo to a third-party API is new data leaving the device — needs explicit
-  user consent/opt-in (not just a privacy-policy mention) and accurate App Privacy disclosure,
-  distinct from the existing on-device-only OCR.
-- Whether the existing crowd-sourced merchant dictionary (`global_merchant_data` in Firestore —
-  see Part 2) stays as the offline fallback's category-guessing aid, or becomes redundant once
-  the online path exists. Current recommendation: **keep it** — it's a free, already-built,
-  offline-capable signal; don't invest further in it as a "real trained model," since an LLM
-  will out-perform any small custom classifier we'd build ourselves for the online path anyway.
+This was previously drafted here but doesn't belong in this doc — it's a **cross-platform
+feature (web + Android + iOS alike)**, not an iOS-specific gap, so it's being built directly by
+us rather than handed off. See `TICKETS.md` (`MYS-9`) for the full spec. Nothing further to do
+here.
 
 ---
 
