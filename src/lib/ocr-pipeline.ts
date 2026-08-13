@@ -1,4 +1,4 @@
-import { addPendingLog, getCategories, updateDocumentFileName, lookupMerchantCategory } from './db';
+import { getCategories, lookupMerchantCategory } from './db';
 import { pullGlobalDictionary } from './firestore-sync';
 
 // ---- CATEGORY KEYWORDS (weighted) ----
@@ -22,6 +22,56 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'imtiaz', 'naheed', 'hyperstar', 'al-fatah', 'al fatah', 'agha', 'kiryana',
     'aldi', 'lidl', 'costco', 'walmart', 'target',
     'milk', 'bread', 'eggs', 'flour', 'rice', 'sugar', 'oil', 'ghee', 'atta',
+    'daal', 'lentil', 'pulses', 'masala', 'spice', 'salt', 'vinegar', 'ketchup',
+    'yogurt', 'dahi', 'butter', 'cheese slice', 'mutton', 'beef', 'vegetable',
+    'onion', 'potato', 'tomato', 'fruit', 'banana', 'apple', 'basmati',
+  ],
+  // Deliberately narrow: these must out-score the broader 'Groceries' and
+  // 'Food' lists on a snack line, so only unambiguous snack terms belong
+  // here (a shared word like "chocolate cake" is better left to Food).
+  'Snacks': [
+    'chips', 'crisps', 'lays', 'cheetos', 'kurkure', 'wafer', 'biscuit', 'cookies',
+    'candy', 'popcorn', 'nimko', 'peanuts', 'sunflower seeds', 'chocolatto',
+    'bisconni', 'oreo', 'kitkat', 'dairy milk', 'snickers', 'chewing gum',
+    'toffee', 'namkeen', 'pringles', 'doritos', 'snack',
+  ],
+  // Kept small on purpose: 'Food' already carries the full restaurant
+  // keyword list, and duplicating those terms here would split the score
+  // between the two categories and make the offline guess less stable.
+  'Eating Out': [
+    'dine in', 'dine-in', 'takeaway', 'take away', 'table for', 'cover charge',
+    'service charge', 'waiter', 'restaurant bill', 'food court',
+  ],
+  'Self Care': [
+    'shampoo', 'conditioner', 'soap', 'body wash', 'toothpaste', 'toothbrush',
+    'deodorant', 'roll-on', 'lotion', 'moisturizer', 'face wash', 'cream',
+    'razor', 'shaving', 'perfume', 'body spray', 'salon', 'barber', 'haircut',
+    'spa', 'sunsilk', 'dove', 'nivea', 'colgate', 'lifebuoy', 'pantene',
+    'head & shoulders', 'gillette', 'vaseline', 'ponds', 'sanitary', 'diaper',
+  ],
+  'Household': [
+    'detergent', 'surf excel', 'ariel', 'dishwash', 'dish washing', 'vim',
+    'harpic', 'lysol', 'bleach', 'phenyl', 'cleaner', 'tissue', 'toilet paper',
+    'garbage bag', 'trash bag', 'air freshener', 'broom', 'mop', 'scrubber',
+    'napkin', 'foil', 'cling film', 'matchbox', 'bulb', 'battery',
+  ],
+  'Rent': [
+    'rent', 'lease', 'landlord', 'tenancy', 'monthly rent', 'advance rent',
+    'maintenance charges', 'society charges',
+  ],
+  'Subscriptions': [
+    'subscription', 'netflix', 'spotify', 'youtube premium', 'prime',
+    'disney+', 'icloud', 'google one', 'chatgpt', 'membership', 'renewal',
+    'monthly plan', 'annual plan', 'patreon',
+  ],
+  'Travel': [
+    'hotel', 'motel', 'resort', 'airbnb', 'booking.com', 'agoda',
+    'visa fee', 'passport', 'luggage', 'baggage', 'tour package', 'travel agency',
+    'boarding pass', 'check-in',
+  ],
+  'Gifts': [
+    'gift', 'present', 'gift wrap', 'wrapping paper', 'greeting card',
+    'birthday gift', 'wedding gift', 'eidi', 'salami', 'bouquet', 'flowers',
   ],
   'Fuel': [
     'shell', 'pso', 'fuel', 'petrol', 'diesel', 'pump', 'cng', 'gasoline',
@@ -192,6 +242,7 @@ function extractAmount(text: string): number {
   return 0;
 }
 
+// ---- COMPLEXITY HEURISTIC (itemized-scan gate) ----
 // ---- DATE EXTRACTION ----
 function extractDate(text: string): string | null {
   const patterns: { regex: RegExp; parse: (m: RegExpMatchArray) => string | null }[] = [
@@ -357,7 +408,32 @@ async function recognizeText(base64Data: string): Promise<string> {
   return data.text;
 }
 
-export async function processReceipt(documentId: number, base64Data: string): Promise<void> {
+/** What OCR + heuristics could work out about a receipt. Nothing persisted. */
+export interface ReceiptAnalysis {
+  merchant: string;
+  amount: number;
+  categoryId: number;
+  date: string;
+  rawText: string;
+}
+
+/**
+ * Reads a receipt image and returns its best-guess merchant/amount/date/
+ * category — WITHOUT writing anything to the database.
+ *
+ * This deliberately persists nothing. It used to be `processReceipt()`,
+ * which immediately INSERTed a `pending_logs` row the moment OCR finished,
+ * before the user had agreed to anything. That row was itself a queued
+ * expense (surfaced via the notification bell), so a single receipt could
+ * end up recorded twice: once as the auto-created pending log, and again
+ * when the user pressed Save in the review sheet — especially once the
+ * itemized split started producing several transactions of its own.
+ *
+ * Now nothing touches the database until the user explicitly presses Save
+ * in ShareReceiptModal, which is the only place a receipt becomes real
+ * transactions.
+ */
+export async function analyzeReceipt(base64Data: string): Promise<ReceiptAnalysis> {
   const rawText = await recognizeText(base64Data);
 
   const amount = extractAmount(rawText);
@@ -403,18 +479,9 @@ export async function processReceipt(documentId: number, base64Data: string): Pr
     categoryId = other?.id || cats[0]?.id || 1;
   }
 
-  const pendingId = `pl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-  await addPendingLog({
-    id: pendingId,
-    document_id: documentId,
-    merchant,
-    amount,
-    category_id: categoryId,
-    date,
-    raw_ocr_text: rawText,
-  });
-
-  const cleanName = `${merchant} ${date}`;
-  await updateDocumentFileName(documentId, cleanName);
+  // Itemized splitting (MYS-9/MYS-10) is NOT attempted here — it's an
+  // explicit, user-triggered action in the review sheet ("Split with AI"),
+  // so the user picks the model and any failure is visible rather than
+  // silently swallowed. See src/lib/itemized-scan.ts.
+  return { merchant, amount, categoryId, date, rawText };
 }
