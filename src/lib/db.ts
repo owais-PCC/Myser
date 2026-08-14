@@ -559,31 +559,41 @@ export async function updateTransaction(id: number, data: {
   note?: string;
   comment?: string | null;
   is_recurring?: boolean;
+  auto_repeat?: boolean;
 }) {
   const database = await getDb();
-  // is_recurring is optional here — if the caller doesn't know about it
-  // (e.g. an older edit form), preserve whatever is already stored rather
-  // than silently clearing the flag.
-  let isRecurring: number;
-  if (data.is_recurring !== undefined) {
-    isRecurring = data.is_recurring ? 1 : 0;
-  } else {
-    const existing = database.exec(`SELECT is_recurring FROM transactions WHERE id = ${id}`);
-    isRecurring = existing.length && existing[0].values.length ? (existing[0].values[0][0] as number) : 0;
+  // is_recurring/auto_repeat are optional here — if the caller doesn't know
+  // about them (e.g. an older edit form), preserve whatever is already
+  // stored rather than silently clearing the flag.
+  const existingRes = database.exec(`SELECT is_recurring, auto_repeat, recurrence_interval, next_occurrence_date FROM transactions WHERE id = ${id}`);
+  const existing: [number, number, string | null, string | null] = existingRes.length && existingRes[0].values.length
+    ? (existingRes[0].values[0] as [number, number, string | null, string | null])
+    : [0, 0, null, null];
+
+  const isRecurring = data.is_recurring !== undefined ? (data.is_recurring ? 1 : 0) : existing[0];
+  const wasAutoRepeat = !!existing[1];
+  const autoRepeat = data.auto_repeat !== undefined ? (data.auto_repeat ? 1 : 0) : existing[1];
+
+  // Only recompute the schedule when auto-repeat actually changes state —
+  // per MYS-11's v1 scope, editing an already-running series' other fields
+  // (amount, category, etc.) must not disturb its next_occurrence_date.
+  let recurrenceInterval = existing[2];
+  let nextOccurrenceDate = existing[3];
+  if (!!autoRepeat !== wasAutoRepeat) {
+    recurrenceInterval = autoRepeat ? 'monthly' : null;
+    nextOccurrenceDate = autoRepeat ? addMonths(data.date, 1) : null;
   }
-  // Editing only ever affects this single row, per MYS-11's v1 scope — if
-  // this happens to be an auto-repeat anchor, its schedule/
-  // next_occurrence_date is left untouched so the series keeps running.
+
   database.run(
-    'UPDATE transactions SET category_id = ?, amount = ?, date = ?, note = ?, comment = ?, is_recurring = ? WHERE id = ?',
-    [data.category_id, data.amount, data.date, data.note || null, data.comment || null, isRecurring, id]
+    'UPDATE transactions SET category_id = ?, amount = ?, date = ?, note = ?, comment = ?, is_recurring = ?, auto_repeat = ?, recurrence_interval = ?, next_occurrence_date = ? WHERE id = ?',
+    [data.category_id, data.amount, data.date, data.note || null, data.comment || null, isRecurring, autoRepeat, recurrenceInterval, nextOccurrenceDate, id]
   );
   persistDb(database);
   const uid = getUserId();
   if (uid) {
-    const txRes = database.exec(`SELECT created_at, document_id, type, auto_repeat, recurrence_interval, next_occurrence_date FROM transactions WHERE id = ${id}`);
+    const txRes = database.exec(`SELECT created_at, document_id, type FROM transactions WHERE id = ${id}`);
     if (txRes.length && txRes[0].values.length) {
-      const [created_at, document_id, type, auto_repeat, recurrence_interval, next_occurrence_date] = txRes[0].values[0] as [string, number | null, string, number, string | null, string | null];
+      const [created_at, document_id, type] = txRes[0].values[0] as [string, number | null, string];
       syncTransaction(uid, id, {
         category_id: data.category_id,
         amount: data.amount,
@@ -594,9 +604,9 @@ export async function updateTransaction(id: number, data: {
         comment: data.comment || null,
         type,
         is_recurring: !!isRecurring,
-        auto_repeat: !!auto_repeat,
-        recurrence_interval,
-        next_occurrence_date,
+        auto_repeat: !!autoRepeat,
+        recurrence_interval: recurrenceInterval,
+        next_occurrence_date: nextOccurrenceDate,
       });
     }
   }

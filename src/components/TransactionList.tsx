@@ -1,19 +1,12 @@
 'use client';
 
-import { Transaction, deleteTransaction, updateTransaction, getCategories } from '@/lib/db';
-import { useState, useEffect, useRef } from 'react';
+import { Transaction, deleteTransaction } from '@/lib/db';
+import { useState } from 'react';
 import { useCurrency } from '@/context/CurrencyContext';
 import CategoryIcon from '@/components/CategoryIcon';
 import TransactionDetailModal from '@/components/TransactionDetailModal';
-import { MoreVertical, X, Calendar, PencilLine, Repeat } from 'lucide-react';
-
-interface Category {
-  id: number;
-  name: string;
-  color: string;
-  icon: string;
-}
-
+import AddExpenseModal from '@/components/AddExpenseModal';
+import { MoreVertical, X, Repeat } from 'lucide-react';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -340,265 +333,20 @@ export default function TransactionList({ transactions, onDelete, onUpdate }: Tr
         </div>
       )}
 
-      {/* Edit Sheet Modal */}
-      {showEditSheet && activeOptionsTx && (
-        <TransactionEditModal
-          transaction={activeOptionsTx}
-          onClose={() => {
-            setShowEditSheet(false);
-            setActiveOptionsTx(null);
-          }}
-          onSaved={() => {
-            setShowEditSheet(false);
-            setActiveOptionsTx(null);
-            if (onUpdate) onUpdate();
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-interface TransactionEditModalProps {
-  transaction: Transaction;
-  onClose: () => void;
-  onSaved: () => void;
-}
-
-function TransactionEditModal({ transaction, onClose, onSaved }: TransactionEditModalProps) {
-  const [amount, setAmount] = useState(() => String(transaction.amount));
-  const [categoryId, setCategoryId] = useState(transaction.category_id);
-  const [date, setDate] = useState(transaction.date);
-  const [note, setNote] = useState(transaction.note || '');
-  const [comment, setComment] = useState(transaction.comment || '');
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [saving, setSaving] = useState(false);
-  const { fmt } = useCurrency();
-  const dateInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    getCategories().then(setCategories);
-  }, []);
-
-  const handleDateClick = () => {
-    if (dateInputRef.current) {
-      if (typeof dateInputRef.current.showPicker === 'function') {
-        dateInputRef.current.showPicker();
-      } else {
-        dateInputRef.current.click();
-      }
-    }
-  };
-
-  async function handleSave() {
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      alert('Please enter a valid amount');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await updateTransaction(transaction.id, {
-        category_id: categoryId,
-        amount: parsedAmount,
-        date,
-        note: note.trim() || undefined,
-        comment: comment.trim() || null,
-      });
-      onSaved();
-    } catch (err) {
-      console.error(err);
-      alert('Failed to save transaction changes.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 300 }}>
-      <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ zIndex: 301 }}>
-        <div className="modal-header">
-          <span className="modal-title">Edit Transaction</span>
-          <button className="modal-close" onClick={onClose}>
-            <X size={16} />
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Amount input */}
-          <div className="input-group">
-            <label className="input-label">Amount</label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <span
-                style={{
-                  position: 'absolute',
-                  left: '14px',
-                  fontWeight: 700,
-                  fontSize: '0.9rem',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                Amount
-              </span>
-              <input
-                className="input-field"
-                type="number"
-                inputMode="decimal"
-                step="any"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                style={{ paddingLeft: '80px', fontWeight: 600 }}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          {/* Date Picker */}
-          <div className="input-group">
-            <label className="input-label">Date</label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <button
-                type="button"
-                onClick={handleDateClick}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '12px',
-                  padding: '10px 14px',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.88rem',
-                  cursor: 'pointer',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                <Calendar size={16} color="var(--text-secondary)" />
-                <span>{date}</span>
-              </button>
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                style={{
-                  position: 'absolute',
-                  opacity: 0,
-                  pointerEvents: 'none',
-                  width: 0,
-                  height: 0,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Category Selector */}
-          <div className="input-group">
-            <label className="input-label">Category</label>
-            <div className="category-grid" style={{ maxHeight: '160px', overflowY: 'auto', padding: '4px' }}>
-              {categories.map((cat) => {
-                const isSelected = categoryId === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    className={`category-chip${isSelected ? ' selected' : ''}`}
-                    onClick={() => setCategoryId(cat.id)}
-                    style={{
-                      border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)',
-                      background: isSelected ? 'var(--accent-light)' : 'var(--bg-secondary)',
-                      color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
-                    }}
-                  >
-                    <div className="category-icon-wrapper" style={{ color: isSelected ? 'var(--accent)' : 'var(--text-secondary)' }}>
-                      <CategoryIcon icon={cat.icon} name={cat.name} size={14} />
-                    </div>
-                    <span>{cat.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Note Input */}
-          <div className="input-group">
-            <label className="input-label">Note</label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <PencilLine
-                size={16}
-                style={{
-                  position: 'absolute',
-                  left: '14px',
-                  color: 'var(--text-muted)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <input
-                className="input-field"
-                type="text"
-                placeholder="Add a note"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                maxLength={100}
-                style={{ paddingLeft: '40px' }}
-              />
-            </div>
-          </div>
-
-          {/* Comment Input */}
-          <div className="input-group">
-            <label className="input-label">Comment</label>
-            <input
-              className="input-field"
-              type="text"
-              placeholder="Add details/comment"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              maxLength={200}
-            />
-          </div>
-
-          {/* Buttons */}
-          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                flex: 1,
-                padding: '14px',
-                borderRadius: '14px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '0.95rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="btn-primary"
-              style={{
-                flex: 1,
-                padding: '14px',
-                borderRadius: '14px',
-                fontSize: '0.95rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Edit Sheet — same window used for adding a new transaction, so
+          every field (including recurring) is editable here too, e.g. to
+          mark an older expense as recurring after the fact. */}
+      <AddExpenseModal
+        isOpen={showEditSheet && !!activeOptionsTx}
+        editTransaction={activeOptionsTx}
+        onClose={() => {
+          setShowEditSheet(false);
+          setActiveOptionsTx(null);
+        }}
+        onSaved={() => {
+          if (onUpdate) onUpdate();
+        }}
+      />
     </div>
   );
 }

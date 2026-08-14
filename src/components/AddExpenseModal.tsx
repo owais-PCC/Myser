@@ -5,10 +5,12 @@ import {
   getCategories,
   addCategory,
   addTransaction,
+  updateTransaction,
   getSpendingByCategory,
   getMonthlyBudget,
   upsertBudget,
   CategorySpending,
+  Transaction,
 } from '@/lib/db';
 import CategoryIcon from '@/components/CategoryIcon';
 import DatePickerModal from '@/components/DatePickerModal';
@@ -29,13 +31,20 @@ interface Category {
 interface AddExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** When set, the modal edits this existing transaction instead of
+   * creating a new one — same window used for adding, so every field
+   * (including recurring) is editable, e.g. to mark an older expense as
+   * recurring after the fact. */
+  editTransaction?: Transaction | null;
+  onSaved?: () => void;
 }
 
-export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProps) {
+export default function AddExpenseModal({ isOpen, onClose, editTransaction, onSaved }: AddExpenseModalProps) {
   const { mode } = useAppMode();
   const { user } = useAuth();
   const { currency, fmt } = useCurrency();
   const { toast, show: showToast, hide: hideToast } = useToast();
+  const isEditing = !!editTransaction;
 
   const [entryType, setEntryType] = useState<'expense' | 'income'>('expense');
   const [categories, setCategories] = useState<Category[]>([]);
@@ -43,6 +52,7 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState('');
+  const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [autoRepeat, setAutoRepeat] = useState(false);
@@ -76,8 +86,13 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
   const loadCategories = useCallback(async () => {
     const cats = await getCategories(entryType);
     setCategories(cats);
-    setSelectedCategory(cats.length > 0 ? cats[0].id : null);
-  }, [entryType]);
+    // Editing: keep whatever category the transaction already has (set by
+    // the populate-from-editTransaction effect below) rather than
+    // defaulting to the first category, which would silently reassign it.
+    if (!isEditing) {
+      setSelectedCategory(cats.length > 0 ? cats[0].id : null);
+    }
+  }, [entryType, isEditing]);
 
   useEffect(() => {
     if (isOpen) {
@@ -85,13 +100,34 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
     }
   }, [isOpen, loadCategories]);
 
+  // Populate every field from the transaction being edited. Runs whenever
+  // the modal opens for a given transaction (not on every render) so
+  // typing in the form doesn't get clobbered mid-edit.
+  useEffect(() => {
+    if (isOpen && editTransaction) {
+      setEntryType(editTransaction.type === 'income' ? 'income' : 'expense');
+      setSelectedCategory(editTransaction.category_id);
+      setAmount(String(editTransaction.amount));
+      setDate(editTransaction.date);
+      setNote(editTransaction.note || '');
+      setComment(editTransaction.comment || '');
+      setIsRecurring(!!editTransaction.is_recurring);
+      setAutoRepeat(!!editTransaction.auto_repeat);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editTransaction?.id]);
+
   // Reset entry-type-specific state whenever the modal closes, so the next
-  // open starts fresh rather than remembering the last session's toggle.
+  // open starts fresh rather than remembering the last session's toggle
+  // (or the previous edit's values).
   useEffect(() => {
     if (!isOpen) {
       setEntryType('expense');
       setIsRecurring(false);
       setAutoRepeat(false);
+      setAmount('');
+      setNote('');
+      setComment('');
     }
   }, [isOpen]);
 
@@ -125,6 +161,14 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
     }
 
     const expenseAmount = parseFloat(amount);
+
+    // Editing skips the budget-reallocation flow (same as the modal this
+    // replaced) — that flow is about deciding where a *new* expense's
+    // money comes from, which doesn't apply to changing an existing one.
+    if (isEditing) {
+      await saveEditedExpense(selectedCategory, expenseAmount);
+      return;
+    }
 
     // Budget reallocation only applies to expenses — income doesn't draw
     // against a category budget.
@@ -171,6 +215,7 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
         amount: expenseAmount,
         date,
         note: note.trim() || undefined,
+        comment: comment.trim() || undefined,
         type: entryType,
         is_recurring: entryType === 'expense' ? isRecurring : undefined,
         auto_repeat: entryType === 'expense' ? autoRepeat : undefined,
@@ -179,6 +224,7 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
 
       setAmount('');
       setNote('');
+      setComment('');
       setIsRecurring(false);
       setAutoRepeat(false);
       const catName = categories.find((c) => c.id === categoryId)?.name;
@@ -191,6 +237,34 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
       }, 300);
     } catch {
       showToast('Failed to save', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveEditedExpense(categoryId: number, expenseAmount: number) {
+    if (!editTransaction) return;
+    setSaving(true);
+    try {
+      await updateTransaction(editTransaction.id, {
+        category_id: categoryId,
+        amount: expenseAmount,
+        date,
+        note: note.trim() || undefined,
+        comment: comment.trim() || null,
+        is_recurring: entryType === 'expense' ? isRecurring : false,
+        auto_repeat: entryType === 'expense' ? autoRepeat : false,
+      });
+      if (user && isSyncEnabled()) uploadAllData(user.uid).catch(() => {});
+
+      showToast('Changes Saved', 'success');
+      window.dispatchEvent(new Event(entryType === 'income' ? 'income-saved' : 'expense-saved'));
+      setTimeout(() => {
+        onSaved?.();
+        onClose();
+      }, 300);
+    } catch {
+      showToast('Failed to save changes', 'error');
     } finally {
       setSaving(false);
     }
@@ -294,7 +368,9 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
-            {entryType === 'income' ? 'Log Income' : 'Log Expense'}
+            {isEditing
+              ? `Edit ${entryType === 'income' ? 'Income' : 'Expense'}`
+              : entryType === 'income' ? 'Log Income' : 'Log Expense'}
           </div>
           <button
             onClick={onClose}
@@ -582,6 +658,20 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
           </div>
         </div>
 
+        {/* Comment Field — a longer freeform detail separate from Note,
+            shown on its own in TransactionDetailModal */}
+        <div style={{ marginBottom: '10px' }}>
+          <input
+            className="input-field"
+            type="text"
+            placeholder="Add details/comment (optional)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            maxLength={200}
+            style={{ fontSize: '0.9rem', borderRadius: '14px' }}
+          />
+        </div>
+
         {/* Recurring toggle — expense only, per MYS-11 scope */}
         {entryType === 'expense' && (
           <div className="card" style={{ padding: '12px 16px', marginBottom: '10px' }}>
@@ -643,7 +733,11 @@ export default function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProp
             disabled={saving || !amount || parseFloat(amount) <= 0}
             style={{ width: '100%', padding: '14px', borderRadius: '14px' }}
           >
-            {saving ? 'Saving...' : `Save ${amount ? fmt(parseFloat(amount)) : (entryType === 'income' ? 'Income' : 'Expense')}`}
+            {saving
+              ? 'Saving...'
+              : isEditing
+              ? 'Save Changes'
+              : `Save ${amount ? fmt(parseFloat(amount)) : (entryType === 'income' ? 'Income' : 'Expense')}`}
           </button>
         </div>
 
