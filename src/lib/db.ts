@@ -910,6 +910,68 @@ export async function getMonthlyTotals(months: string[], options: { excludeRecur
   return results;
 }
 
+export async function getMonthlyIncomeTotals(months: string[]): Promise<{ month: string; total: number }[]> {
+  const database = await getDb();
+  const results: { month: string; total: number }[] = [];
+  for (const m of months) {
+    const res = database.exec(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE substr(date, 1, 7) = '${m}' AND type = 'income'`
+    );
+    results.push({ month: m, total: res.length ? (res[0].values[0][0] as number) : 0 });
+  }
+  return results;
+}
+
+export interface RangeCategoryAmount {
+  id: number;
+  name: string;
+  color: string;
+  icon: string;
+  type: 'expense' | 'income';
+  amount: number;
+}
+
+/** Custom date-range breakdown (inclusive of both endDate and startDate) —
+ * lets the user ask "how much did I spend/earn between X and Y" for an
+ * arbitrary window, not just a calendar month. */
+export async function getRangeSummary(startDate: string, endDate: string): Promise<{
+  spent: number;
+  income: number;
+  categories: RangeCategoryAmount[];
+}> {
+  const database = await getDb();
+
+  const totalsRes = database.exec(
+    `SELECT type, COALESCE(SUM(amount), 0) as total FROM transactions WHERE date BETWEEN '${startDate}' AND '${endDate}' GROUP BY type`
+  );
+  let spent = 0;
+  let income = 0;
+  if (totalsRes.length) {
+    for (const row of totalsRes[0].values) {
+      const [type, total] = row as [string, number];
+      if (type === 'expense') spent = total;
+      else if (type === 'income') income = total;
+    }
+  }
+
+  const catRes = database.exec(`
+    SELECT c.id, c.name, c.color, c.icon, c.type, COALESCE(SUM(t.amount), 0) as amount
+    FROM categories c
+    LEFT JOIN transactions t ON t.category_id = c.id AND t.date BETWEEN '${startDate}' AND '${endDate}'
+    GROUP BY c.id
+    HAVING amount > 0
+    ORDER BY amount DESC
+  `);
+  const categories: RangeCategoryAmount[] = catRes.length
+    ? catRes[0].values.map((row) => {
+        const [id, name, color, icon, type, amount] = row as [number, string, string, string, string, number];
+        return { id, name, color, icon, type: type as 'expense' | 'income', amount };
+      })
+    : [];
+
+  return { spent, income, categories };
+}
+
 export async function getDailySpending(month: string, options: { excludeRecurring?: boolean } = {}): Promise<{ day: number; total: number }[]> {
   const database = await getDb();
   const recurringFilter = options.excludeRecurring ? 'AND is_recurring = 0' : '';
