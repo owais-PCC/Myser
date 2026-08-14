@@ -877,6 +877,15 @@ export async function updateDocumentFileName(docId: number, newName: string) {
   persistDb(database);
 }
 
+/** Records the R2 object key once the background backup upload succeeds
+ * (see src/lib/receipt-storage.ts) — storage_path was already part of the
+ * documents schema, just never populated until now. */
+export async function updateDocumentStoragePath(docId: number, storagePath: string) {
+  const database = await getDb();
+  database.run('UPDATE documents SET storage_path = ? WHERE id = ?', [storagePath, docId]);
+  persistDb(database);
+}
+
 // ---- ANALYTICS ----
 export async function getMonthlyTotals(months: string[], options: { excludeRecurring?: boolean } = {}): Promise<{ month: string; total: number }[]> {
   const database = await getDb();

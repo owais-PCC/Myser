@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { addDocument, addTransaction, addCategory, getCategories, saveMerchantMemory, updateDocumentFileName } from '@/lib/db';
+import { addDocument, addTransaction, addCategory, getCategories, saveMerchantMemory, updateDocumentFileName, updateDocumentStoragePath } from '@/lib/db';
 import { analyzeReceipt } from '@/lib/ocr-pipeline';
+import { backupReceiptToR2 } from '@/lib/receipt-storage';
 import { groupItems, scanReceiptItemized, fetchAvailableProviders, ReceiptLineItem, LlmProvider, ProviderOption, ItemizedScanQuotaError } from '@/lib/itemized-scan';
 import ItemizedGroupsEditor from '@/components/ItemizedGroupsEditor';
 import ProUpgradeModal from '@/components/ProUpgradeModal';
@@ -78,6 +79,14 @@ export default function ShareReceiptModal({ base64, mimeType, onClose }: ShareRe
         data_base64: base64,
       });
       setDocId(newDocId);
+
+      // Background cross-device backup (Cloudflare R2) — purely additive,
+      // never awaited/blocking: the local IndexedDB save above is already
+      // the complete, authoritative save. See receipt-storage.ts's header
+      // comment for why this can't fail loudly.
+      backupReceiptToR2(newDocId, base64, mimeType).then((key) => {
+        if (key) updateDocumentStoragePath(newDocId, key);
+      });
 
       const today = new Date().toISOString().slice(0, 10);
       try {
