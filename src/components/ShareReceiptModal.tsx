@@ -106,7 +106,12 @@ export default function ShareReceiptModal({ base64, mimeType, onClose }: ShareRe
     run();
   }, [base64, mimeType]);
 
-  const thumbUrl = `data:${mimeType};base64,${base64.slice(0, 50000)}`;
+  // Not truncated. Slicing the base64 produces a cut-off JPEG: Android's
+  // WebView renders the leading scanlines of one, but WebKit refuses to
+  // display a partial image at all and shows an empty box (it logs
+  // "Decoding incomplete with error code -1"). The full string is only a
+  // data: URL on an <img>, which is decoded off the main thread.
+  const thumbUrl = `data:${mimeType};base64,${base64}`;
 
   function reassignItem(itemIndex: number, newCategoryName: string) {
     setItems((prev) => {

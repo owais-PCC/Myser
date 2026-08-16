@@ -45,6 +45,18 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- Receipt capture goes through a hidden <input type="file" accept="image/*">
+	     (src/components/BottomNav.tsx), which WKWebView presents as a sheet
+	     offering Photo Library / Take Photo / Choose File. "Take Photo" reaches
+	     the camera, and iOS terminates any app that does so without a purpose
+	     string — a hard crash, not a denied-permission dialog. The library route
+	     uses PHPickerViewController and needs nothing, but @capacitor/camera is
+	     compiled into this target and would require the photo-library string the
+	     moment it is called, so both are declared here. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Myser uses the camera to photograph your receipts and read the amount, date, and merchant automatically.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Myser needs access to your photos so you can scan a receipt you have already photographed.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

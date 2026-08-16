@@ -61,19 +61,49 @@ class MainViewController: CAPBridgeViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        applyAndInspect(source: "viewDidAppear")
+        applyAndInspect(source: "viewDidAppear", force: true)
         // Poll every 0.5s for 5s after the view appears to ensure layout remains synced.
+        // These stay forced: the whole point of the startup window is to push a
+        // reflow even when geometry looks unchanged, which is the cold-launch fix
+        // this class was written for. The window is bounded (10 ticks / 5s), so it
+        // cannot run away.
         for i in 1...10 {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.5) { [weak self] in
-                self?.applyAndInspect(source: "poll#\(i)")
+                self?.applyAndInspect(source: "poll#\(i)", force: true)
             }
         }
     }
 
-    private func applyAndInspect(source: String) {
+    /// Last geometry pushed into the page, used to break the feedback loop below.
+    private var lastAppliedGeometry: (top: CGFloat, bottom: CGFloat, height: CGFloat)?
+
+    private func applyAndInspect(source: String, force: Bool = false) {
         let topInset = view.safeAreaInsets.top
         let bottomInset = view.safeAreaInsets.bottom
         let viewHeight = view.bounds.height
+
+        // This method dispatches a synthetic `resize` into the page. The page
+        // responds by relaying out, WKWebView reports new geometry, and
+        // viewDidLayoutSubviews fires again — calling straight back into here.
+        // Unguarded that recurses without end and saturates the main thread, so
+        // the app stops processing touches: taps on the DocumentViewer close
+        // button do nothing, a presented camera picker wedges, and the app burns
+        // CPU while apparently idle. Pinch-zoom makes it worse because zooming
+        // generates a dense burst of layout passes.
+        //
+        // Bailing out when nothing actually moved makes the cycle converge: each
+        // pass either reports new geometry (legitimate, keep going) or repeats
+        // the previous values (nothing to do, stop). Callers that genuinely need
+        // an unconditional reflow pass force: true.
+        if !force,
+           let last = lastAppliedGeometry,
+           last.top == topInset,
+           last.bottom == bottomInset,
+           last.height == viewHeight {
+            return
+        }
+        lastAppliedGeometry = (top: topInset, bottom: bottomInset, height: viewHeight)
+
         let elapsed = elapsedMs()
         let js = """
         (function() {

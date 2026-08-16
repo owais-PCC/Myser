@@ -21,6 +21,21 @@ end
 target 'App' do
   capacitor_pods
   # Add your Pods here
+
+  # CapacitorFirebaseAuthentication's podspec defaults to its 'Lite' subspec,
+  # which omits GoogleSignIn and does not define -DRGCFA_INCLUDE_GOOGLE. Every
+  # line of GoogleAuthProviderHandler.startSignInWithGoogleFlow() sits inside
+  # `#if RGCFA_INCLUDE_GOOGLE`, so without this the method compiles to an empty
+  # body: the JS bridge call arrives, nothing runs, and the promise never
+  # settles — the indefinite "Signing in..." hang with no sheet, no error and
+  # no network traffic. Requesting the Google subspec here defines the flag and
+  # pulls in GoogleSignIn.
+  #
+  # This must stay in the target block rather than in `def capacitor_pods`:
+  # `npx cap sync ios` rewrites that whole function from package.json and would
+  # drop it. Apple sign-in needs no equivalent — AppleAuthProviderHandler has
+  # no compile guards.
+  pod 'CapacitorFirebaseAuthentication/Google', :path => '../../node_modules/@capacitor-firebase/authentication'
 end
 
 post_install do |installer|

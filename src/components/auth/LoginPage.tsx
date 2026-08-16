@@ -19,7 +19,17 @@ interface LoginPageProps {
 // see a full error banner. Match both spellings, case-insensitively.
 function isUserCancelledSignIn(e: unknown): boolean {
   const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
-  return msg.includes('popup-closed') || msg.includes('cancelled') || msg.includes('canceled');
+  return (
+    msg.includes('popup-closed') ||
+    msg.includes('cancelled') ||
+    msg.includes('canceled') ||
+    // Apple's AuthenticationServices reports a cancelled sheet as
+    // ASAuthorizationError.canceled (1001) and carries no words at all —
+    // the user sees only "The operation couldn't be completed.
+    // (com.apple.AuthenticationServices.AuthorizationError error 1001.)",
+    // so the spelling checks above never match it.
+    msg.includes('authorizationerror error 1001')
+  );
 }
 
 // @capacitor-firebase/authentication's iOS native handler
@@ -64,9 +74,18 @@ async function nativeGoogleSignIn() {
 // `credential.nonce` here is the plugin's raw (unhashed) nonce; Firebase's
 // OAuthProvider.credential() expects that as `rawNonce` (it hashes/compares
 // internally against what was sent to Apple).
+// `skipNativeAuth: true` is passed per-call rather than set globally in
+// capacitor.config.ts. Without it, the plugin signs into Firebase natively
+// first (the global setting is `false`), which consumes Apple's single-use
+// nonce — signInWithCredential() below then presents the same credential a
+// second time and Firebase rejects it with auth/missing-or-invalid-nonce
+// ("Duplicate credential received"). Google's credentials aren't nonce-bound
+// the same way, which is why only Apple hit this. Overriding per-call keeps
+// the global value intact for Android's production Google flow; this Apple
+// path is iOS-only regardless (see showAppleButton).
 async function nativeAppleSignIn() {
   const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-  const result = await FirebaseAuthentication.signInWithApple();
+  const result = await FirebaseAuthentication.signInWithApple({ skipNativeAuth: true });
   const provider = new OAuthProvider('apple.com');
   const credential = provider.credential({
     idToken: result.credential?.idToken,
