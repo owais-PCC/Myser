@@ -702,8 +702,12 @@ function CustomRangeCard() {
         See totals for any window, not just a calendar month.
       </div>
 
+      {/* minWidth: 0 on both columns — a flex item defaults to min-width: auto,
+          so it refuses to shrink below its content. Safari gives date inputs a
+          wide intrinsic size, so without this the two fields overflow the row
+          and visually overlap each other on iOS. */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <label style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px' }}>
             From
           </label>
@@ -716,7 +720,7 @@ function CustomRangeCard() {
             style={{ fontSize: '0.82rem', padding: '9px 10px' }}
           />
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <label style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px' }}>
             To
           </label>

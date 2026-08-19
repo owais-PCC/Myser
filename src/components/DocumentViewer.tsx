@@ -32,7 +32,13 @@ export default function DocumentViewer({ doc, onClose }: DocumentViewerProps) {
         animation: 'fadeInOverlay 0.2s ease',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', flexShrink: 0 }}>
+      {/* This overlay is `inset: 0`, so it covers the status bar / Dynamic Island
+          too. Without the safe-area inset the header rendered underneath them:
+          the title collided with the clock and the 40x40 close button sat inside
+          the sensor housing, where it is effectively untappable. --safe-area-top
+          resolves to 0px on Android (the --ios-* fallback is only ever set by
+          MainViewController.swift), so this stays byte-identical there. */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(var(--safe-area-top) + 16px) 20px 16px', flexShrink: 0 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ color: 'white', fontWeight: 700, fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {doc.file_name}
@@ -46,7 +52,7 @@ export default function DocumentViewer({ doc, onClose }: DocumentViewerProps) {
         </button>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+      <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', paddingBottom: 'calc(var(--safe-area-bottom) + 16px)' }}>
         {loading ? (
           <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>Loading...</div>
         ) : dataUrl ? (
