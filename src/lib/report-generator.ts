@@ -46,9 +46,9 @@ export async function generateMonthEndReportDoc(
     format: 'a4',
   });
 
-  const primaryColor: [number, number, number] = [20, 152, 103]; // Myser Green (#149867)
+  const primaryColor: [number, number, number] = [20, 152, 103]; // Myserly Green (#149867)
   const darkSlate: [number, number, number] = [15, 23, 42]; // Slate 900
-  const secondaryColor: [number, number, number] = [82, 102, 111]; // Myser Slate Gray (#52666f)
+  const secondaryColor: [number, number, number] = [82, 102, 111]; // Myserly Slate Gray (#52666f)
   const lightBg: [number, number, number] = [248, 250, 252]; // Slate 50
   const borderBg: [number, number, number] = [226, 232, 240]; // Slate 200
 
@@ -67,13 +67,13 @@ export async function generateMonthEndReportDoc(
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.text('Myser Expense Tracker • Official Monthly Financial Report', 15, 287);
+    doc.text('Myserly Expense Tracker • Official Monthly Financial Report', 15, 287);
     doc.text(`Page ${pageNumber} of ${totalPages}`, 195, 287, { align: 'right' });
   };
 
   // --- PAGE 1: COVER PAGE & EXECUTIVE SUMMARY ---
 
-  // Title Logo Block (Actual Myser stylized "M" logo)
+  // Title Logo Block (Actual Myserly stylized "M" logo)
   doc.setLineCap('round');
   doc.setLineJoin('round');
   doc.setLineWidth(1.5);
@@ -88,13 +88,13 @@ export async function generateMonthEndReportDoc(
   doc.line(21.0, 18.6, 25.2, 14.6);
   doc.line(25.2, 14.6, 25.2, 22.0);
 
-  // App Name & Document Title (Myser Wordmark)
+  // App Name & Document Title (Myserly Wordmark)
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(20, 152, 103); // My
   doc.text('My', 31, 19.5);
-  doc.setTextColor(82, 102, 111); // ser
-  doc.text('ser', 39, 19.5);
+  doc.setTextColor(82, 102, 111); // serly
+  doc.text('serly', 39, 19.5);
 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(8);
@@ -136,7 +136,7 @@ export async function generateMonthEndReportDoc(
   doc.setFontSize(9);
   doc.setTextColor(darkSlate[0], darkSlate[1], darkSlate[2]);
   
-  const displayName = user?.displayName || 'Myser User';
+  const displayName = user?.displayName || 'Myserly User';
   const emailStr = user?.email || 'local-user@myser.app';
   doc.text(`${displayName}`, 20, 44);
   doc.setFontSize(7.5);
@@ -417,7 +417,7 @@ export async function saveOrSharePdf(
       if (navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `Myser Report ${month}`,
+          title: `Myserly Report ${month}`,
           text: `Financial report for ${month}`,
         });
         return { success: true, method: 'share', fileName };
@@ -457,7 +457,7 @@ export async function saveOrSharePdf(
       const { Filesystem, Directory } = await import('@capacitor/filesystem');
       const base64 = doc.output('datauristring').split(',')[1];
       await Filesystem.writeFile({
-        path: `Download/Myser/${fileName}`,
+        path: `Download/Myserly/${fileName}`,
         data: base64,
         directory: Directory.ExternalStorage,
         recursive: true,
@@ -534,7 +534,7 @@ export function generateAiPrompt(
     ? `- Total Allocated Monthly Budget Limit: ${formatCurrency(monthlyBudget, currency)}`
     : '';
 
-  return `I want you to analyze my monthly spending report from Myser for ${monthName}. Here is the summary of my financial data:
+  return `I want you to analyze my monthly spending report from Myserly for ${monthName}. Here is the summary of my financial data:
 - Currency: ${currency.code} (${symbol})
 - Total Spent this month: ${formatCurrency(totalSpent, currency)}
 - Average Daily Spend: ${formatCurrency(avgDaily, currency)}

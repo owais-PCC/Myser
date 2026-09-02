@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.owais.myser',
-  appName: 'Myser',
+  appName: 'Myserly',
   webDir: 'out',
   server: {
     androidScheme: 'https',

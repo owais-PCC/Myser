@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getSpendingByCategory, getTransactions, CategorySpending, Transaction } from '@/lib/db';
+import { getSpendingByCategory, getTransactions, getIncomeByCategory, CategorySpending, Transaction } from '@/lib/db';
 import PageHeader from '@/components/PageHeader';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useAppMode } from '@/context/AppModeContext';
@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const { mode } = useAppMode();
   const [data, setData] = useState<CategorySpending[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [incomeTotal, setIncomeTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const monthStr = new Date().toISOString().slice(0, 7);
@@ -23,24 +24,34 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const [spentData, txs] = await Promise.all([
+      const [spentData, txs, incomeCats] = await Promise.all([
         getSpendingByCategory(monthStr),
-        getTransactions(5, monthStr)
+        getTransactions(5, monthStr),
+        getIncomeByCategory(monthStr),
       ]);
       setData(spentData);
       setTransactions(txs);
+      setIncomeTotal(incomeCats.reduce((s, c) => s + c.received, 0));
       setLoading(false);
     }
     load();
 
     window.addEventListener('expense-saved', load);
-    return () => window.removeEventListener('expense-saved', load);
+    window.addEventListener('income-saved', load);
+    return () => {
+      window.removeEventListener('expense-saved', load);
+      window.removeEventListener('income-saved', load);
+    };
   }, [monthStr]);
 
   const totalBudgeted = data.reduce((s, c) => s + c.budget, 0);
   const totalSpent = data.reduce((s, c) => s + c.spent, 0);
   const remaining = totalBudgeted - totalSpent;
   const isOver = remaining < 0;
+  // Net = income minus every expense logged this month, budget or no
+  // budget — this is deliberately not affected by budget mode's
+  // "remaining" figure above, which only tracks budgeted categories.
+  const net = incomeTotal - totalSpent;
 
   const activeCategories = data.filter((c) => c.budget > 0);
 
@@ -98,6 +109,11 @@ export default function DashboardPage() {
                     of {fmt(totalBudgeted)} limit
                   </span>
                 </div>
+                {incomeTotal > 0 && (
+                  <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.25)', fontSize: '0.8rem', fontWeight: 700 }}>
+                    Net this month: {net >= 0 ? '+' : '−'}{fmt(Math.abs(net))}
+                  </div>
+                )}
               </div>
 
               {/* Category Budget Cards */}
@@ -186,6 +202,11 @@ export default function DashboardPage() {
                 <div style={{ fontSize: '3.2rem', fontWeight: 900, marginTop: '8px', letterSpacing: '-1.5px', lineHeight: 1 }}>
                   {fmt(totalSpent)}
                 </div>
+                {incomeTotal > 0 && (
+                  <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.25)', fontSize: '0.8rem', fontWeight: 700 }}>
+                    Net this month: {net >= 0 ? '+' : '−'}{fmt(Math.abs(net))}
+                  </div>
+                )}
               </div>
 
               <h2 className="section-title" style={{ marginBottom: '12px' }}>

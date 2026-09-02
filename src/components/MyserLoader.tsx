@@ -102,9 +102,9 @@ export function MyserLoader({
               </svg>
             </div>
             {showWordmark && (
-              <div aria-label="Myser" style={{ fontSize: fs, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1, fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif", animation: `${wordAnim} ${c}s ease-out infinite`, userSelect: 'none' }}>
+              <div aria-label="Myserly" style={{ fontSize: fs, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1, fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif", animation: `${wordAnim} ${c}s ease-out infinite`, userSelect: 'none' }}>
                 <span style={{ color: '#149867' }}>My</span>
-                <span style={{ color: '#52666f' }}>ser</span>
+                <span style={{ color: '#52666f' }}>serly</span>
               </div>
             )}
           </div>

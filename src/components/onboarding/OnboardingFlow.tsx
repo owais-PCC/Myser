@@ -82,7 +82,7 @@ export default function OnboardingFlow() {
       <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 24px' }}>
         <div style={{ maxWidth: '400px', width: '100%', margin: '0 auto' }}>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px', letterSpacing: '-0.3px' }}>
-            How do you want to use Myser?
+            How do you want to use Myserly?
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '24px', fontWeight: 400 }}>
             You can change this anytime in Settings.

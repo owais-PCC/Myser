@@ -34,7 +34,7 @@ const PRO_FEATURES = [
  * document functions/src/quota.ts already reads/writes server-side).
  *
  * Deliberately calm, not naggy — this only ever appears when the user
- * navigates here themselves (Settings > Myser Pro). No banners, no
+ * navigates here themselves (Settings > Myserly Pro). No banners, no
  * interrupt-the-flow upsells elsewhere in the app (explicit product
  * decision, see TICKETS.md MYS-10).
  */
@@ -76,7 +76,7 @@ export default function ProUpgradeModal({ uid, onClose }: ProUpgradeModalProps) 
   const remaining = profile ? scansRemaining(profile) : null;
   const used = profile?.itemizedScansUsedThisMonth ?? 0;
 
-  const planName = isExecutive ? 'Executive' : isPro ? 'Myser Pro' : 'Free';
+  const planName = isExecutive ? 'Executive' : isPro ? 'Myserly Pro' : 'Free';
 
   function usageLine(): string {
     if (isExecutive) {
@@ -96,7 +96,7 @@ export default function ProUpgradeModal({ uid, onClose }: ProUpgradeModalProps) 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sparkles size={20} color="#6366f1" />
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Myser Pro</h2>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Myserly Pro</h2>
           </div>
           <button onClick={onClose} style={{ background: 'var(--bg-elevated)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)' }}>
             <X size={16} />

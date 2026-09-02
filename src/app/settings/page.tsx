@@ -208,7 +208,7 @@ export default function SettingsPage() {
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
         const { Share } = await import('@capacitor/share');
 
-        const tempFilename = `myser-report-${reportMonth}.pdf`;
+        const tempFilename = `myserly-report-${reportMonth}.pdf`;
         const writeResult = await Filesystem.writeFile({
           path: tempFilename,
           data: pdfBase64,
@@ -216,15 +216,15 @@ export default function SettingsPage() {
         });
 
         await Share.share({
-          title: 'Myser Month End Report',
+          title: 'Myserly Month End Report',
           text: `Financial statement for ${formattedReportMonth}`,
           files: [writeResult.uri],
         });
       } else {
         if (navigator.share && pdfBlob) {
-          const file = new File([pdfBlob], `myser-report-${reportMonth}.pdf`, { type: 'application/pdf' });
+          const file = new File([pdfBlob], `myserly-report-${reportMonth}.pdf`, { type: 'application/pdf' });
           await navigator.share({
-            title: 'Myser Month End Report',
+            title: 'Myserly Month End Report',
             files: [file],
           });
         } else {
@@ -242,16 +242,16 @@ export default function SettingsPage() {
     if (!pdfBase64 && !pdfBlob) return;
     try {
       const { Capacitor } = await import('@capacitor/core');
-      const filename = `myser-report-${reportMonth}.pdf`;
+      const filename = `myserly-report-${reportMonth}.pdf`;
       if (Capacitor.isNativePlatform()) {
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
         await Filesystem.writeFile({
-          path: `Download/Myser/${filename}`,
+          path: `Download/Myserly/${filename}`,
           data: pdfBase64,
           directory: Directory.ExternalStorage,
           recursive: true,
         });
-        showToast('Saved to Download/Myser/', 'success', filename);
+        showToast('Saved to Download/Myserly/', 'success', filename);
       } else {
         const url = URL.createObjectURL(pdfBlob!);
         const a = document.createElement('a');
@@ -1292,7 +1292,7 @@ export default function SettingsPage() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                           <div>
                             <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prepared For:</div>
-                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginTop: '3px' }}>{user?.displayName || 'Myser User'}</div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginTop: '3px' }}>{user?.displayName || 'Myserly User'}</div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '1px' }}>{user?.email || 'local-user@myser.app'}</div>
                           </div>
                           <div>
@@ -1540,7 +1540,7 @@ export default function SettingsPage() {
             <ChevronRight size={16} color="var(--text-muted)" />
           </div>
 
-          {/* Row 5: Myser Pro — a plain settings row like any other, not a
+          {/* Row 5: Myserly Pro — a plain settings row like any other, not a
               banner/upsell. Only ever seen when the user comes looking
               for it (MYS-10 explicit no-nagging decision). */}
           <div
@@ -1555,7 +1555,7 @@ export default function SettingsPage() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Sparkles size={18} color="#6366f1" />
-              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>Myser Pro</span>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>Myserly Pro</span>
             </div>
             <ChevronRight size={16} color="var(--text-muted)" />
           </div>

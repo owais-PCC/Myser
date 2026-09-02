@@ -21,7 +21,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Myser — Personal Budget Tracker',
+  title: 'Myserly — Personal Budget Tracker',
   description: 'Track expenses, manage budgets, and see where your money goes — all locally on your device.',
 };
 
