@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAppMode } from '@/context/AppModeContext';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import ShareReceiptModal from '@/components/ShareReceiptModal';
-import { LayoutGrid, Plus, History, Wallet, BarChart3, FolderOpen, Receipt, PencilLine, Landmark } from 'lucide-react';
+import { LayoutGrid, Plus, History, Wallet, BarChart3, FolderOpen, Receipt, PencilLine, Landmark, Camera } from 'lucide-react';
 
 // Income gets its own nav item in both modes (not gated to budget mode) —
 // see MYS-8 in TICKETS.md.
@@ -33,6 +33,7 @@ export default function BottomNav() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [receiptData, setReceiptData] = useState<{ base64: string; mimeType: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const items = mode === 'tracker' ? TRACKER_ITEMS : BUDGET_ITEMS;
   const isAddPage = pathname === '/add';
@@ -50,9 +51,9 @@ export default function BottomNav() {
     };
     reader.readAsDataURL(file);
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    // Clear whichever input actually fired this (gallery or camera), not a
+    // hardcoded ref — both inputs share this one handler.
+    e.target.value = '';
   }
 
   return (
@@ -84,10 +85,10 @@ export default function BottomNav() {
       {/* Speed Dial Action Menu */}
       {speedDialOpen && !isAddPage && (
         <div className="speed-dial-menu">
-          {/* Action 1: Upload Receipt */}
+          {/* Action 1: Upload Receipt (existing photo/file) */}
           <div
             className="speed-dial-item"
-            style={{ animationDelay: '0.04s' }}
+            style={{ animationDelay: '0.08s' }}
             onClick={() => {
               setSpeedDialOpen(false);
               fileInputRef.current?.click();
@@ -102,7 +103,7 @@ export default function BottomNav() {
           {/* Action 2: Manual Entry */}
           <div
             className="speed-dial-item"
-            style={{ animationDelay: '0s' }}
+            style={{ animationDelay: '0.04s' }}
             onClick={() => {
               setSpeedDialOpen(false);
               setShowAddModal(true);
@@ -111,6 +112,24 @@ export default function BottomNav() {
             <span>Manual Entry</span>
             <div className="speed-dial-icon" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
               <PencilLine size={18} />
+            </div>
+          </div>
+
+          {/* Action 3: Capture Receipt (opens the camera directly, not a
+              chooser) — closest to the FAB / first to appear, since taking
+              a photo on the spot is the most common way people log a
+              receipt. */}
+          <div
+            className="speed-dial-item"
+            style={{ animationDelay: '0s' }}
+            onClick={() => {
+              setSpeedDialOpen(false);
+              cameraInputRef.current?.click();
+            }}
+          >
+            <span>Capture Receipt</span>
+            <div className="speed-dial-icon" style={{ background: 'linear-gradient(135deg, #10b981, #047857)' }}>
+              <Camera size={18} />
             </div>
           </div>
         </div>
@@ -137,11 +156,27 @@ export default function BottomNav() {
         </div>
       )}
 
-      {/* Hidden file input for native image/document picker */}
+      {/* Hidden file input for native image/document picker (gallery) */}
       <input
         type="file"
         ref={fileInputRef}
         accept="image/*"
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
+      />
+
+      {/* Hidden file input for the camera specifically. The `capture`
+          attribute is what makes the difference: without it, mobile
+          WebViews show a chooser sheet (Photo Library / Take Photo /
+          Choose File) that buries the camera as one option among several;
+          with it, Android and iOS both launch the camera app directly,
+          skipping the chooser entirely. "environment" picks the back
+          (world-facing) camera, the one you'd actually point at a receipt. */}
+      <input
+        type="file"
+        ref={cameraInputRef}
+        accept="image/*"
+        capture="environment"
         onChange={handleFileSelect}
         style={{ display: 'none' }}
       />
