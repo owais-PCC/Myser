@@ -107,7 +107,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const t0 = Date.now();
   const quota = await checkAndConsumeItemizedScanQuota(uid);
+  console.log(`[timing] quota check: ${Date.now() - t0}ms`);
   if (!quota.allowed) {
     // Distinct status/shape so the client can distinguish "you're out of
     // scans" (fall back to standard OCR silently, per MYS-10's
@@ -120,12 +122,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let rawText: string;
   try {
+    const t1 = Date.now();
     rawText = await callLlmProvider(provider, {
       base64Image: body.base64Image,
       mimeType: body.mimeType,
       prompt,
       apiKey,
     });
+    console.log(`[timing] LLM call (${provider}): ${Date.now() - t1}ms`);
     // Recorded on success only right now — a failed call still spends a
     // slot of the provider's rate limit, but the common failure here is a
     // malformed image, not the provider actually running, so success-only

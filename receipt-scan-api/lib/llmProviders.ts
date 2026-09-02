@@ -25,31 +25,53 @@ interface CallArgs {
 }
 
 async function callGemini({ base64Image, mimeType, prompt, apiKey }: CallArgs): Promise<string> {
-  // Flash-tier model: cheapest vision pricing of the three, Google's own
-  // structured-extraction use case — the default recommendation in
-  // TICKETS.md MYS-9. Using the "-latest" alias (not a pinned version like
-  // "gemini-2.5-flash") deliberately — confirmed live that a hardcoded
-  // version number breaks outright once Google retires it for new API
-  // keys ("model no longer available to new users"), while this alias
-  // just keeps resolving to whatever Google's current flash model is
-  // (gemini-3.6-flash as of this writing). Swap for flash-lite/pro to test.
-  const model = "gemini-flash-latest";
+  // Flash-Lite, not full Flash. Root-caused a real "AI split doesn't work"
+  // report to this: "gemini-flash-latest" resolves to the full Flash model
+  // (gemini-3.6-flash as of this writing), whose free tier is heavily
+  // congested for this shared key — live-tested it hanging 45-60+ seconds
+  // and timing out on every call. "gemini-flash-lite-latest" answered the
+  // same real receipt correctly in ~4 seconds. Using the "-latest" alias
+  // (not a pinned version like "gemini-2.5-flash-lite") deliberately —
+  // confirmed live that a hardcoded version number breaks outright once
+  // Google retires it for new API keys ("model no longer available to new
+  // users"), while the alias just keeps resolving to Google's current
+  // flash-lite model.
+  const model = "gemini-flash-lite-latest";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: mimeType, data: base64Image } },
-          ],
-        },
-      ],
-      generationConfig: { responseMimeType: "application/json" },
-    }),
-  });
+  // Explicit timeout, shorter than the function's own maxDuration (see
+  // vercel.json), so a stalled call fails with a clear, catchable error
+  // ("timed out after 45s") instead of the whole invocation getting killed
+  // by Vercel's platform timeout, which returns an opaque
+  // FUNCTION_INVOCATION_TIMEOUT with no body our own error handling ever
+  // gets to run against.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45_000);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: mimeType, data: base64Image } },
+            ],
+          },
+        ],
+        generationConfig: { responseMimeType: "application/json" },
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if ((err as Error).name === "AbortError") {
+      throw new Error("Gemini call timed out after 45s");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) {
     throw new Error(`Gemini API error ${res.status}: ${await res.text()}`);
   }
